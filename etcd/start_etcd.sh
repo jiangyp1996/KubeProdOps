@@ -110,7 +110,7 @@ mkdir -p $ETCD_INSTALLATION_PATH/$etcd_version
 chmod +x /tmp/etcd
 chmod +x /tmp/etcdctl
 mv /tmp/etcd* $ETCD_INSTALLATION_PATH/$etcd_version/
-ln -fsn $ETCD_INSTALLATION_PATH/$etcd_version $ETCD_INSTALL_PATH/current
+ln -fsn $ETCD_INSTALLATION_PATH/$etcd_version $ETCD_INSTALLATION_PATH/current
 
 
 # step 04: start etcd
@@ -154,7 +154,7 @@ Description=ETCD
 [Service]
 Type=notify
 EnvironmentFile=/etc/sysconfig/etcd
-ExecStart=$ETCD_INSTALL_PATH/current/etcd \$ETCD_NODE_NAME \\
+ExecStart=$ETCD_INSTALLATION_PATH/current/etcd \$ETCD_NODE_NAME \\
           \$INITIAL_ADVERTISE_PEER_URLS \\
           \$LISTEN_PEER_URLS \\
           \$ADVERTISE_CLIENT_URLS \\
