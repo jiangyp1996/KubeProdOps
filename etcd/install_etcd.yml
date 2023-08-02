@@ -23,3 +23,5 @@
       msg: "{{result.stdout}}"
   - debug:
       msg: "{{result.stderr}}"
+  - name: clear start_etcd.sh
+    command: rm -f /tmp/start_etcd.sh

@@ -118,7 +118,7 @@ ln -fsn $ETCD_INSTALLATION_PATH/$etcd_version $ETCD_INSTALLATION_PATH/current
 format_cluster_nodes=
 node_id_index=0
 for i in ${cluster_nodes_array[@]} ; do
-  format_cluster_nodes="$format_cluster_nodes,$NAME_PREFIX$node_id_index=http://$i:$peer_port"
+  format_cluster_nodes="$format_cluster_nodes,$NAME_PREFIX$node_id_index=http://$i:$PEER_PORT"
   let node_id_index++
 done
 format_cluster_nodes=$(echo $format_cluster_nodes | sed -e 's/,//')
@@ -130,13 +130,13 @@ if command_exists systemctl ; then
 # -name
 ETCD_NODE_NAME='-name $NAME_PREFIX$node_id'
 # -initial-advertise-peer-urls
-INITIAL_ADVERTISE_PEER_URLS='-initial-advertise-peer-urls http://$local_ip:$peer_port'
+INITIAL_ADVERTISE_PEER_URLS='-initial-advertise-peer-urls http://$local_ip:$PEER_PORT'
 # -listen-peer-urls
-LISTEN_PEER_URLS='-listen-peer-urls http://0.0.0.0:$peer_port'
+LISTEN_PEER_URLS='-listen-peer-urls http://0.0.0.0:$PEER_PORT'
 # -advertise-client-urls
-ADVERTISE_CLIENT_URLS='-advertise-client-urls http://$local_ip:$client_port'
+ADVERTISE_CLIENT_URLS='-advertise-client-urls http://$local_ip:$CLIENT_PORT'
 # -listen-client-urls
-LISTEN_CLIENT_URLS='-listen-client-urls http://0.0.0.0:$client_port'
+LISTEN_CLIENT_URLS='-listen-client-urls http://0.0.0.0:$CLIENT_PORT'
 # -initial-cluster-token
 INITIAL_CLUSTER_TOKEN='-initial-cluster-token $CLUSTER_TOKEN'
 # -initial-cluster
