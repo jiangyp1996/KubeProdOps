@@ -4,16 +4,10 @@
   hosts: etcd
   tasks:
   - name: copy start_etcd.sh 
-    copy: 
-      src: ./start_etcd.sh 
-      dest: /tmp/start_etcd.sh
+    copy: src=./start_etcd.sh dest=/tmp/start_etcd.sh
   - name: copy etcd and etcdctl
-    copy: 
-      src: "./package/{{ etcd_version }}/etcd"
-      dest:/tmp/etcd
-    copy: 
-      src: "./package/{{ etcd_version }}/etcdctl"
-      dest: /tmp/etcdctl
+    copy: src=./package/{{ etcd_version }}/etcd dest=/tmp/etcd
+    copy: src=./package/{{ etcd_version }}/etcdctl dest=/tmp/etcdctl
     vars:
       - etcd_version: "{{ hostvars[inventory_hostname]['etcd_version'] }}"
   - name: create etcd storage directory
