@@ -89,7 +89,6 @@ for i in ${cluster_nodes_array[@]} ; do
       break
     fi
   done
-  let node_id++
 done
 
 if [ "$available" == "false" ]; then
@@ -97,14 +96,21 @@ if [ "$available" == "false" ]; then
   exit 1
 fi
 
+for i in ${cluster_nodes_array[@]} ; do
+  if [ "$i" == "$local_ip" ]; then
+    break
+  fi
+  let node_id++
+done
+
 
 # step 03: Process etcd and etcdctl binary package
 
-mkdir -p $ETCD_INSTALL_PATH/$etcd_version
+mkdir -p $ETCD_INSTALLATION_PATH/$etcd_version
 chmod +x /tmp/etcd
 chmod +x /tmp/etcdctl
-mv /tmp/etcd* $ETCD_INSTALL_PATH/$etcd_version/
-ln -fsn $ETCD_INSTALL_PATH/$etcd_version $ETCD_INSTALL_PATH/current
+mv /tmp/etcd* $ETCD_INSTALLATION_PATH/$etcd_version/
+ln -fsn $ETCD_INSTALLATION_PATH/$etcd_version $ETCD_INSTALL_PATH/current
 
 
 # step 04: start etcd
