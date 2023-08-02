@@ -36,18 +36,18 @@ for arg in "$@"
 do
 	case $arg in
 		--cluster-nodes=*)
-            cluster_nodes="${arg#*=}"
-            ;;
-        --data-path=*)
-            data_path="${arg#*=}"
-            ;;
-        --etcd-version=*)
-            etcd_version="${arg#*=}"
-            ;;
-        *)
-            print_help
-            exit0
-            ;;
+        cluster_nodes="${arg#*=}"
+        ;;
+    --data-path=*)
+        data_path="${arg#*=}"
+        ;;
+    --etcd-version=*)
+        etcd_version="${arg#*=}"
+        ;;
+    *)
+        print_help
+        exit0
+        ;;
     esac
 done
 
