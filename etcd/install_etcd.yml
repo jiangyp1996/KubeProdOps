@@ -10,8 +10,6 @@
     copy: src=./package/{{ etcd_version }}/etcdctl dest=/tmp/etcdctl
     vars:
       - etcd_version: "{{ hostvars[inventory_hostname]['etcd_version'] }}"
-  - name: create etcd storage directory
-    command: mkdir -p {{ hostvars[inventory_hostname]['store_root_path'] }}/etcd
   - name: start installing etcd
     command: /bin/sh /tmp/start_etcd.sh --cluster-nodes={{ allips }} --data-path={{ data_path }} --etcd-version={{ etcd_version }}
     register: result
