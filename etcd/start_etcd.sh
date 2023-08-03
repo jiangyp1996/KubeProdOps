@@ -61,10 +61,8 @@ else
   echo "--cluster-nodes: $cluster_nodes"
 fi
 
-if [ ! -d ${root_dir} ]; then
-	echo -e "\033[31m[WARN] ${data_path} does not exist and needs to be created.\033[0m"
-	mkdir -p ${root_dir}
-fi
+mkdir -p ${root_dir}/etcd
+
 
 # set -x
 
