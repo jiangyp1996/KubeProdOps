@@ -7,7 +7,7 @@
 
 ### Jump server
 
-- ansible v2.3.1.0
+- ansible v2.9.27
 >If you have installed a higher version, please modify the YAML file syntax partly.
 
 ### Linux machines

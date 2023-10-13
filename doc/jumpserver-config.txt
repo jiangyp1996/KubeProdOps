@@ -1,0 +1,23 @@
+jumpserver-config.txt
+
+
+1. install ansible
+
+(1) configure yum repo if you are in china
+
+cd /etc/yum.repos.d/
+wget http://mirrors.aliyun.com/repo/epel-7.repo
+
+(2) installation
+
+yum install -y epel-release
+yum install -y ansible
+
+ansible 2.9.27
+
+
+2. ssh configuration
+
+In your jump-server, using command "ssh-keygen -t rsa" to generate ssh private and public key.
+Append the public key content into your target host's /root/.ssh/authorized_keys file.
+
