@@ -1,29 +1,12 @@
 #!/bin/bash
 
-# STEP 02: check arguments
-
-# STEP 03: check host IP
-
-# STEP 04: download and decompress installation package
-
-# STEP 06: add DNS server into resolv.conf 
-
-# STEP 07: add hostname and IP address to /etc/hosts
-
-# STEP 12: start kube-apiserver
-
-# STEP 13: start kube-controller-manager
-
-# STEP 14: start kube-scheduler
-
-# STEP 14: create cluster role、cluster role binding、canary deployment
-
 
 # parameters 
 etcd_servers=
-service_cluster_ip_range=
+service_cluster_ip_range=172.16.0.0/13
+flannel_network=172.24.0.0/13
 cluster_dns=
-cluster_name=
+cluster_name="my-k8s"
 insecure_bind_address=127.0.0.1
 apiserver_insecure_port=8080
 apiserver_secure_port=6443
@@ -35,6 +18,7 @@ master_ip=
 # constants
 APISERVER_CA_PATH="/etc/kubernetes/pki"
 APISERVER_AUTH_PATH="/etc/kubernetes/auth"
+CLUSTER_DOMAIN="cluster.local"
 
 
 
@@ -69,6 +53,9 @@ do
     --service-cluster-ip-range=*)
       service_cluster_ip_range="${arg#*=}"
       ;;
+    --flannel-network=*)
+      flannel_network="${arg#*=}"
+      ;;
     --cluster-dns=*)
       cluster_dns="${arg#*=}"
       ;;
@@ -96,14 +83,15 @@ do
       ;;
   esac
 done
-			
-
-cluster_domain=${cluster_name}.cluster.local
-etcd_prefix=/${cluster_name}/registry
 
 
 
 # step 01 : check arguments
+
+if [ -z "$etcd_servers" ]; then
+  echo -e "\033[31m[ERROR] --etcd-servers is absent\033[0m"
+  exit 1
+fi
 
 if [[ -z $master_ip ]]; then
   echo -e "\033[31m[ERROR] --master-ip is absent\033[0m"
@@ -134,7 +122,7 @@ if [[ $master_ip_exist == false ]]; then
 fi
 
 
-# STEP 03: download and decompress installation package
+# STEP 03: download and decompress kubernetes server installation package
 
 # https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.18.md#server-binaries-6
 
@@ -147,7 +135,7 @@ cp /tmp/master/kube* /usr/bin/
 rm -rf /tmp/master /tmp/master.tar.gz
 
 
-# STEP 04: CA
+# STEP 04: generate CA files
 
 mkdir -p $APISERVER_CA_PATH
 
@@ -171,11 +159,11 @@ subjectAltName=@alt_names
 DNS.1 = kubernetes
 DNS.2 = kubernetes.default
 DNS.3 = kubernetes.default.svc
-DNS.4 = kubernetes.default.svc.${cluster_domain}
+DNS.4 = kubernetes.default.svc.${CLUSTER_DOMAIN}
 IP.1 = 172.16.0.1 
 IP.2 = 127.0.0.1
 IP.3 = ${master_ip}
-" > master_ssl.conf
+" > master_ssl.cnf
 
 openssl genrsa -out apiserver.key 2048
 openssl req -new -key apiserver.key -config master_ssl.cnf -subj "/CN=${master_ip}" -out apiserver.csr
@@ -184,7 +172,7 @@ openssl x509 -req -in apiserver.csr -CA ca.crt -CAkey ca.key -CAcreateserial -da
 mv ca.key ca.crt master_ssl.conf apiserver.key apiserver.csr apiserver.crt ${APISERVER_CA_PATH}
 
 
-# STEP 05: auth token
+# STEP 05: generate the token.csv file
 
 mkdir -p ${APISERVER_AUTH_PATH}
 
@@ -193,7 +181,7 @@ echo $token,k8s-node,0 > ${APISERVER_AUTH_PATH}/token.csv
 
 
 
-# STEP 05: start kube-apiserver
+# STEP 06: configure and start kube-apiserver by systemd
 
 echo -e "\033[36m[INFO] STEP 12: Start kube-apiserver...\033[0m"
 if service_exists kube-apiserver; then
@@ -221,7 +209,7 @@ WantedBy=multi-user.target
 " > /usr/lib/systemd/system/kube-apiserver.service
 
 
-KUBE_APISERVER_OPTS="--etcd-prefix=${etcd_prefix} --client-ca-file=${APISERVER_CA_PATH}/ca.crt --tls-private-key-file=${APISERVER_CA_PATH}/apiserver.key --tls-cert-file=${APISERVER_CA_PATH}/apiserver.crt --service-account-key-file=${APISERVER_CA_PATH}/apiserver.crt --token-auth-file=${APISERVER_AUTH_PATH}/token.csv"
+KUBE_APISERVER_OPTS="--client-ca-file=${APISERVER_CA_PATH}/ca.crt --tls-private-key-file=${APISERVER_CA_PATH}/apiserver.key --tls-cert-file=${APISERVER_CA_PATH}/apiserver.crt --service-account-key-file=${APISERVER_CA_PATH}/apiserver.crt --token-auth-file=${APISERVER_AUTH_PATH}/token.csv"
 
 echo "# configure file for kube-apiserver
 
@@ -246,7 +234,7 @@ sleep 8
 systemctl status -l kube-apiserver
 
 
-# STEP 06: start kube-controller-manager
+# STEP 07: configure and start kube-controller-manager by systemd
 
 echo -e "\033[36m[INFO] STEP 13: Start kube-controller-manager...\033[0m"
 if service_exists kube-controller; then
@@ -284,7 +272,7 @@ sleep 5
 systemctl status -l kube-controller
 
 
-# STEP 07: start kube-scheduler
+# STEP 08: configure and start kube-scheduler by systemd
 
 echo -e "\033[36m[INFO] STEP 14: Start kube-scheduler...\033[0m"
 if service_exists kube-scheduler; then
@@ -320,6 +308,55 @@ systemctl enable kube-scheduler
 sleep 5
 systemctl status -l kube-scheduler
 
+
+# STEP 09: create cluster role、cluster role binding
+
+single_etcd_server=$(echo ${etcd_servers} | cut -f1 -d ',')
+curl -L ${single_etcd_server}/v2/keys/flannel/network/config -XPUT -d value="{\"Network\": \"${flannel_network}\", \"SubnetLen\": 22, \"Backend\": {\"Type\": \"vxlan\", \"VNI\": 1}}"
+cat <<EOF | kubectl -s http://127.0.0.1:${insecure_port} apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: cluster-admin
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  annotations:
+    rbac.authorization.kubernetes.io/autoupdate: "true"
+  labels:
+    kubernetes.io/bootstrapping: rbac-defaults
+  name: cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: Group
+  name: system:masters
+- kind: ServiceAccount
+  name: default
+  namespace: kube-system
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: k8s-node
+EOF
 
 
 
