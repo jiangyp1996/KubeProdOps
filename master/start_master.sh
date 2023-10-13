@@ -130,9 +130,8 @@ wget -P /tmp https://domeos-script.bjcnc.scs.sohucs.com/jiang/kubeProdOps/master
 
 tar -zxvf /tmp/master.tar.gz -C /tmp --no-same-owner
 
-cp /tmp/master/kube* /usr/bin/
+mv /tmp/master/kube* /usr/bin/
 
-rm -rf /tmp/master /tmp/master.tar.gz
 
 
 # STEP 04: generate CA files
@@ -169,7 +168,7 @@ openssl genrsa -out apiserver.key 2048
 openssl req -new -key apiserver.key -config master_ssl.cnf -subj "/CN=${master_ip}" -out apiserver.csr
 openssl x509 -req -in apiserver.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 36500 -extensions v3_req -extfile master_ssl.cnf -out apiserver.crt
 
-mv ca.key ca.crt master_ssl.conf apiserver.key apiserver.csr apiserver.crt ${APISERVER_CA_PATH}
+mv ca.key ca.crt master_ssl.cnf apiserver.key apiserver.csr apiserver.crt ${APISERVER_CA_PATH}
 
 
 # STEP 05: generate the token.csv file
@@ -196,7 +195,7 @@ Wants=network-online.target
 
 [Service]
 EnvironmentFile=/etc/sysconfig/kube-apiserver
-ExecStart=$K8S_INSTALL_PATH/current/kube-apiserver \$ETCD_SERVERS \\
+ExecStart=/usr/bin/kube-apiserver \$ETCD_SERVERS \\
           \$SERVICE_CLUSTER_IP_RANGE \\
           \$INSECURE_BIND_ADDRESS \\
           \$INSECURE_PORT \\
@@ -222,9 +221,9 @@ KUBE_APISERVER_OPTS='${KUBE_APISERVER_OPTS} --kubelet-preferred-address-types=In
 # --insecure-bind-address
 INSECURE_BIND_ADDRESS='--insecure-bind-address=${insecure_bind_address}'
 # --insecure-port
-INSECURE_PORT='--insecure-port=${insecure_port}'
+INSECURE_PORT='--insecure-port=${apiserver_insecure_port}'
 # --secure-port
-SECURE_PORT='--secure-port=${secure_port}'
+SECURE_PORT='--secure-port=${apiserver_secure_port}'
 " > /etc/sysconfig/kube-apiserver
 
 systemctl daemon-reload
@@ -248,7 +247,7 @@ Wants=kube-apiserver.service
 
 [Service]
 EnvironmentFile=/etc/sysconfig/kube-controller-manager
-ExecStart=$K8S_INSTALL_PATH/current/kube-controller-manager \$KUBE_MASTER \\
+ExecStart=/usr/bin/kube-controller-manager \$KUBE_MASTER \\
           \$KUBE_CONTROLLER_OPTS
 Restart=always
 
@@ -259,17 +258,17 @@ WantedBy=multi-user.target
 echo "# configure file for kube-controller-manager
 
 # --master
-KUBE_MASTER='--master=http://127.0.0.1:${insecure_port}'
+KUBE_MASTER='--master=http://127.0.0.1:${apiserver_insecure_port}'
 
 # other parameters
 KUBE_CONTROLLER_OPTS='--root-ca-file=${APISERVER_CA_PATH}/ca.crt --service-account-private-key-file=${APISERVER_CA_PATH}/apiserver.key'
 " > /etc/sysconfig/kube-controller-manager
 
 systemctl daemon-reload
-systemctl start kube-controller
-systemctl enable kube-controller
+systemctl start kube-controller-manager
+systemctl enable kube-controller-manager
 sleep 5
-systemctl status -l kube-controller
+systemctl status -l kube-controller-manager
 
 
 # STEP 08: configure and start kube-scheduler by systemd
@@ -286,7 +285,7 @@ Wants=kube-apiserver.service
 
 [Service]
 EnvironmentFile=/etc/sysconfig/kube-scheduler
-ExecStart=$K8S_INSTALL_PATH/current/kube-scheduler \$KUBE_MASTER \\
+ExecStart=/usr/bin/kube-scheduler \$KUBE_MASTER \\
           \$KUBE_SCHEDULER_OPTS
 Restart=always
 
@@ -296,7 +295,7 @@ WantedBy=multi-user.target
 
 echo "# configure file for kube-scheduler
 # --master
-KUBE_MASTER='--master=http://127.0.0.1:${insecure_port}'
+KUBE_MASTER='--master=http://127.0.0.1:${apiserver_insecure_port}'
 
 # other parameters
 KUBE_SCHEDULER_OPTS=''
@@ -313,7 +312,7 @@ systemctl status -l kube-scheduler
 
 single_etcd_server=$(echo ${etcd_servers} | cut -f1 -d ',')
 curl -L ${single_etcd_server}/v2/keys/flannel/network/config -XPUT -d value="{\"Network\": \"${flannel_network}\", \"SubnetLen\": 22, \"Backend\": {\"Type\": \"vxlan\", \"VNI\": 1}}"
-cat <<EOF | kubectl -s http://127.0.0.1:${insecure_port} apply -f -
+cat <<EOF | kubectl -s http://127.0.0.1:${apiserver_insecure_port} apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

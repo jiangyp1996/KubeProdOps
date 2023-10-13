@@ -12,7 +12,7 @@ CLUSTER_TOKEN="etcd-cluster"
 NAME_PREFIX="kubeEtcd"
 CLIENT_PORT=4012
 PEER_PORT=4010
-ETCD_OPTS=""
+ETCD_OPTS="--enable-v2=true"
 
 
 print_help() {
