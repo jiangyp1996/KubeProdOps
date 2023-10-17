@@ -7,4 +7,5 @@
 
 ### Master
 
-- [ ] test CA certification
+- [x] test CA certification
+- [ ] how to handle binary installation packages

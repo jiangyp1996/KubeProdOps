@@ -130,7 +130,7 @@ wget -P /tmp https://domeos-script.bjcnc.scs.sohucs.com/jiang/kubeProdOps/master
 
 tar -zxvf /tmp/master.tar.gz -C /tmp --no-same-owner
 
-mv /tmp/master/kube* /usr/bin/
+mv /tmp/master/kube* /usr/local/bin/
 
 
 
@@ -141,17 +141,18 @@ mkdir -p $APISERVER_CA_PATH
 openssl genrsa -out ca.key 2048
 openssl req -x509 -new -nodes -key ca.key -subj "/CN=${master_ip}" -days 36500 -out ca.crt
 
-echo "[ req ]
-req_extensions = v3_req
-distinguished_name  = req_distinguished_name
-[ req_distinguished_name ]
+echo "ts = 2048
+prompt = no
+default_md = sha256
+req_extensions = req_ext
+distinguished_name = dn
 
+[ dn ]
+O = Personal
+CN = ${cluster_name}
 
-# Extensions to add to a certificate request
-[ v3_req ]
-basicConstraints = CA:FALSE
-keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-subjectAltName=@alt_names
+[ req_ext ]
+subjectAltName = @alt_names
 
 
 [ alt_names ]
@@ -162,11 +163,19 @@ DNS.4 = kubernetes.default.svc.${CLUSTER_DOMAIN}
 IP.1 = 172.16.0.1 
 IP.2 = 127.0.0.1
 IP.3 = ${master_ip}
+
+[ v3_ext ]
+authorityKeyIdentifier=keyid,issuer:always
+basicConstraints=CA:FALSE
+keyUsage=keyEncipherment,dataEncipherment
+extendedKeyUsage=serverAuth,clientAuth
+subjectAltName=@alt_names
 " > master_ssl.cnf
 
 openssl genrsa -out apiserver.key 2048
-openssl req -new -key apiserver.key -config master_ssl.cnf -subj "/CN=${master_ip}" -out apiserver.csr
-openssl x509 -req -in apiserver.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 36500 -extensions v3_req -extfile master_ssl.cnf -out apiserver.crt
+openssl req -new -key apiserver.key -config master_ssl.cnf -out apiserver.csr
+openssl x509 -req -in apiserver.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out apiserver.crt -days 36500 -extensions v3_ext -extfile master_ssl.cnf
+
 
 mv ca.key ca.crt master_ssl.cnf apiserver.key apiserver.csr apiserver.crt ${APISERVER_CA_PATH}
 
@@ -195,7 +204,7 @@ Wants=network-online.target
 
 [Service]
 EnvironmentFile=/etc/sysconfig/kube-apiserver
-ExecStart=/usr/bin/kube-apiserver \$ETCD_SERVERS \\
+ExecStart=kube-apiserver \$ETCD_SERVERS \\
           \$SERVICE_CLUSTER_IP_RANGE \\
           \$INSECURE_BIND_ADDRESS \\
           \$INSECURE_PORT \\
@@ -247,7 +256,7 @@ Wants=kube-apiserver.service
 
 [Service]
 EnvironmentFile=/etc/sysconfig/kube-controller-manager
-ExecStart=/usr/bin/kube-controller-manager \$KUBE_MASTER \\
+ExecStart=kube-controller-manager \$KUBE_MASTER \\
           \$KUBE_CONTROLLER_OPTS
 Restart=always
 
@@ -285,7 +294,7 @@ Wants=kube-apiserver.service
 
 [Service]
 EnvironmentFile=/etc/sysconfig/kube-scheduler
-ExecStart=/usr/bin/kube-scheduler \$KUBE_MASTER \\
+ExecStart=kube-scheduler \$KUBE_MASTER \\
           \$KUBE_SCHEDULER_OPTS
 Restart=always
 
