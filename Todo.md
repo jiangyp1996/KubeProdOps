@@ -1,6 +1,6 @@
 ### Etcd
 
-- [ ] add CA certification
+- [x] add CA certification
 
 
 
@@ -9,3 +9,8 @@
 
 - [x] test CA certification
 - [ ] how to handle binary installation packages
+
+
+### Node
+
+- [ ] a preliminary installation framework

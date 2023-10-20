@@ -138,8 +138,8 @@ mv /tmp/master/kube* /usr/local/bin/
 
 mkdir -p $APISERVER_CA_PATH
 
-openssl genrsa -out ca.key 2048
-openssl req -x509 -new -nodes -key ca.key -subj "/CN=${master_ip}" -days 36500 -out ca.crt
+# openssl genrsa -out ca.key 2048
+# openssl req -x509 -new -nodes -key ca.key -subj "/CN=${master_ip}" -days 36500 -out ca.crt
 
 echo "ts = 2048
 prompt = no
@@ -149,7 +149,7 @@ distinguished_name = dn
 
 [ dn ]
 O = Personal
-CN = ${cluster_name}
+CN = ${master_ip}
 
 [ req_ext ]
 subjectAltName = @alt_names
@@ -170,14 +170,12 @@ basicConstraints=CA:FALSE
 keyUsage=keyEncipherment,dataEncipherment
 extendedKeyUsage=serverAuth,clientAuth
 subjectAltName=@alt_names
-" > master_ssl.cnf
+" > ${APISERVER_CA_PATH}/master_ssl.cnf
 
-openssl genrsa -out apiserver.key 2048
-openssl req -new -key apiserver.key -config master_ssl.cnf -out apiserver.csr
-openssl x509 -req -in apiserver.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out apiserver.crt -days 36500 -extensions v3_ext -extfile master_ssl.cnf
+openssl genrsa -out ${APISERVER_CA_PATH}/apiserver.key 2048
+openssl req -new -key ${APISERVER_CA_PATH}/apiserver.key -config ${APISERVER_CA_PATH}/master_ssl.cnf -out ${APISERVER_CA_PATH}/apiserver.csr
+openssl x509 -req -in ${APISERVER_CA_PATH}/apiserver.csr -CA ${APISERVER_CA_PATH}/ca.crt -CAkey ${APISERVER_CA_PATH}/ca.key -CAcreateserial -out ${APISERVER_CA_PATH}/apiserver.crt -days 36500 -extensions v3_ext -extfile ${APISERVER_CA_PATH}/master_ssl.cnf
 
-
-mv ca.key ca.crt master_ssl.cnf apiserver.key apiserver.csr apiserver.crt ${APISERVER_CA_PATH}
 
 
 # STEP 05: generate the token.csv file
