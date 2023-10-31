@@ -10,9 +10,9 @@ etcd_version=3.5.4
 ETCD_INSTALLATION_PATH="/usr/sbin/etcd"
 CLUSTER_TOKEN="etcd-cluster"
 NAME_PREFIX="kubeEtcd"
-CLIENT_PORT=4012
-PEER_PORT=4010
-ETCD_OPTS="--enable-v2=true"
+CLIENT_PORT=2379
+PEER_PORT=2380
+ETCD_OPTS="--enable-v2=true --cert-file=/etc/kubernetes/pki/etcd_server.crt --key-file=/etc/kubernetes/pki/etcd_server.key --trusted-ca-file=/etc/kubernetes/pki/ca.crt --client-cert-auth=true --peer-cert-file=/etc/kubernetes/pki/etcd_server.crt --peer-key-file=/etc/kubernetes/pki/etcd_server.key --peer-trusted-ca-file=/etc/kubernetes/pki/ca.crt --peer-client-cert-auth=true"
 
 
 print_help() {
@@ -36,18 +36,18 @@ for arg in "$@"
 do
 	case $arg in
 		--cluster-nodes=*)
-        cluster_nodes="${arg#*=}"
-        ;;
+      cluster_nodes="${arg#*=}"
+      ;;
     --data-path=*)
-        data_path="${arg#*=}"
-        ;;
+      data_path="${arg#*=}"
+      ;;
     --etcd-version=*)
-        etcd_version="${arg#*=}"
-        ;;
+      etcd_version="${arg#*=}"
+      ;;
     *)
-        print_help
-        exit0
-        ;;
+      print_help
+      exit 0
+      ;;
     esac
 done
 
@@ -62,9 +62,6 @@ else
 fi
 
 mkdir -p ${root_dir}/etcd
-
-
-# set -x
 
 
 # step 02: check if local IP is in cluster_nodes
@@ -102,13 +99,13 @@ for i in ${cluster_nodes_array[@]} ; do
 done
 
 
-# step 03: Process etcd and etcdctl binary package
+# step 03: process etcd and etcdctl binary package
 
-mkdir -p $ETCD_INSTALLATION_PATH/$etcd_version
+mkdir -p ${ETCD_INSTALLATION_PATH}/${etcd_version}
 chmod +x /tmp/etcd
 chmod +x /tmp/etcdctl
-mv /tmp/etcd* $ETCD_INSTALLATION_PATH/$etcd_version/
-ln -fsn $ETCD_INSTALLATION_PATH/$etcd_version $ETCD_INSTALLATION_PATH/current
+mv /tmp/etcd* ${ETCD_INSTALLATION_PATH}/${etcd_version}/
+ln -fsn ${ETCD_INSTALLATION_PATH}/${etcd_version} ${ETCD_INSTALLATION_PATH}/current
 
 
 # step 04: start etcd
@@ -116,35 +113,35 @@ ln -fsn $ETCD_INSTALLATION_PATH/$etcd_version $ETCD_INSTALLATION_PATH/current
 format_cluster_nodes=
 node_id_index=0
 for i in ${cluster_nodes_array[@]} ; do
-  format_cluster_nodes="$format_cluster_nodes,$NAME_PREFIX$node_id_index=http://$i:$PEER_PORT"
+  format_cluster_nodes="${format_cluster_nodes},${NAME_PREFIX}${node_id_index}=https://${i}:${PEER_PORT}"
   let node_id_index++
 done
-format_cluster_nodes=$(echo $format_cluster_nodes | sed -e 's/,//')
+format_cluster_nodes=$(echo ${format_cluster_nodes} | sed -e 's/,//')
 
 if command_exists systemctl ; then
   mkdir -p /etc/sysconfig
   systemctl stop etcd
   echo "# configure file for etcd.service
 # -name
-ETCD_NODE_NAME='-name $NAME_PREFIX$node_id'
+ETCD_NODE_NAME='-name ${NAME_PREFIX}${node_id}'
 # -initial-advertise-peer-urls
-INITIAL_ADVERTISE_PEER_URLS='-initial-advertise-peer-urls http://$local_ip:$PEER_PORT'
+INITIAL_ADVERTISE_PEER_URLS='-initial-advertise-peer-urls https://${local_ip}:${PEER_PORT}'
 # -listen-peer-urls
-LISTEN_PEER_URLS='-listen-peer-urls http://0.0.0.0:$PEER_PORT'
+LISTEN_PEER_URLS='-listen-peer-urls https://0.0.0.0:${PEER_PORT}'
 # -advertise-client-urls
-ADVERTISE_CLIENT_URLS='-advertise-client-urls http://$local_ip:$CLIENT_PORT'
+ADVERTISE_CLIENT_URLS='-advertise-client-urls https://${local_ip}:${CLIENT_PORT}'
 # -listen-client-urls
-LISTEN_CLIENT_URLS='-listen-client-urls http://0.0.0.0:$CLIENT_PORT'
+LISTEN_CLIENT_URLS='-listen-client-urls https://0.0.0.0:${CLIENT_PORT}'
 # -initial-cluster-token
-INITIAL_CLUSTER_TOKEN='-initial-cluster-token $CLUSTER_TOKEN'
+INITIAL_CLUSTER_TOKEN='-initial-cluster-token ${CLUSTER_TOKEN}'
 # -initial-cluster
-INITIAL_CLUSTER='-initial-cluster $format_cluster_nodes'
+INITIAL_CLUSTER='-initial-cluster ${format_cluster_nodes}'
 # -initial-cluster-state
 INITIAL_CLUSTER_STATE='-initial-cluster-state new'
 # -data-dir
-DATA_DIR='-data-dir $data_path'
+DATA_DIR='-data-dir ${data_path}'
 # other parameters
-ETCD_OPTS='$ETCD_OPTS'
+ETCD_OPTS='${ETCD_OPTS}'
 " > /etc/sysconfig/etcd
 
   echo "[Unit]

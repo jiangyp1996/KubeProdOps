@@ -4,10 +4,9 @@
 # parameters 
 etcd_servers=
 service_cluster_ip_range=172.16.0.0/13
-flannel_network=172.24.0.0/13
-cluster_dns=
+flannel_network_ip_range=172.24.0.0/13
 cluster_name="my-k8s"
-insecure_bind_address=127.0.0.1
+apiserver_insecure_bind_address=127.0.0.1
 apiserver_insecure_port=8080
 apiserver_secure_port=6443
 kubernetes_version=1.18.14
@@ -26,9 +25,12 @@ function print_help() {
   echo -e "
   \033[0;33mParameters explanation:
 
-  --cluster-nodes      [required]  etcd cluster peer nodes
-  --data-path          [required]  etcd data storage root path
-  --etcd_version       [required]  etcd version, default 3.5.4\033[0m
+  --etcd-servers                   [required]  etcd cluster client ip
+  --master-ip                      [required]  master ip
+  --service-cluster-ip-range       [optional]  apiserver parameter --service-cluster-ip-range, default 172.16.0.0/13
+  --flannel-network-ip-range       [optional]  cluster pod ip range, default 172.24.0.0/13
+  --cluster-name                   [optional]  cluster name, default my-k8s
+  \033[0m
   "
 }
 
@@ -53,11 +55,8 @@ do
     --service-cluster-ip-range=*)
       service_cluster_ip_range="${arg#*=}"
       ;;
-    --flannel-network=*)
-      flannel_network="${arg#*=}"
-      ;;
-    --cluster-dns=*)
-      cluster_dns="${arg#*=}"
+    --flannel-network-ip-range=*)
+      flannel_network_ip_range="${arg#*=}"
       ;;
     --cluster-name=*)
       cluster_name="${arg#*=}"
@@ -68,8 +67,8 @@ do
     --apiserver-secure-port=*)
       apiserver_secure_port="${arg#*=}"
       ;;
-    --insecure-bind-address=*)
-      insecure_bind_address="${arg#*=}"
+    --apiserver-insecure-bind-address=*)
+      apiserver_insecure_bind_address="${arg#*=}"
       ;;
     --kubernetes-version=*)
       kubernetes_version="${arg#*=}"
@@ -93,7 +92,7 @@ if [ -z "$etcd_servers" ]; then
   exit 1
 fi
 
-if [[ -z $master_ip ]]; then
+if [[ -z "$master_ip" ]]; then
   echo -e "\033[31m[ERROR] --master-ip is absent\033[0m"
   exit 1
 fi
@@ -207,7 +206,8 @@ ExecStart=kube-apiserver \$ETCD_SERVERS \\
           \$INSECURE_BIND_ADDRESS \\
           \$INSECURE_PORT \\
           \$SECURE_PORT \\
-          \$KUBE_APISERVER_OPTS
+          \$KUBE_APISERVER_OPTS \\
+          \$ETCD_CA_OPTS
 Restart=always
 
 [Install]
@@ -216,6 +216,7 @@ WantedBy=multi-user.target
 
 
 KUBE_APISERVER_OPTS="--client-ca-file=${APISERVER_CA_PATH}/ca.crt --tls-private-key-file=${APISERVER_CA_PATH}/apiserver.key --tls-cert-file=${APISERVER_CA_PATH}/apiserver.crt --service-account-key-file=${APISERVER_CA_PATH}/apiserver.crt --token-auth-file=${APISERVER_AUTH_PATH}/token.csv"
+ETCD_CA_OPTS="--etcd-cafile=/etc/kubernetes/pki/ca.crt --etcd-certfile=/etc/kubernetes/pki/etcd_client.crt --etcd-keyfile=/etc/kubernetes/pki/etcd_client.key"
 
 echo "# configure file for kube-apiserver
 
@@ -223,14 +224,16 @@ echo "# configure file for kube-apiserver
 ETCD_SERVERS='--etcd-servers=${etcd_servers}'
 # --service-cluster-ip-range
 SERVICE_CLUSTER_IP_RANGE='--service-cluster-ip-range=${service_cluster_ip_range}'
-# other parameters
-KUBE_APISERVER_OPTS='${KUBE_APISERVER_OPTS} --kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP --kubelet-client-certificate=${APISERVER_CA_PATH}/apiserver.crt --kubelet-client-key=${APISERVER_CA_PATH}/apiserver.key'
 # --insecure-bind-address
-INSECURE_BIND_ADDRESS='--insecure-bind-address=${insecure_bind_address}'
+INSECURE_BIND_ADDRESS='--insecure-bind-address=${apiserver_insecure_bind_address}'
 # --insecure-port
 INSECURE_PORT='--insecure-port=${apiserver_insecure_port}'
 # --secure-port
 SECURE_PORT='--secure-port=${apiserver_secure_port}'
+# other parameters
+KUBE_APISERVER_OPTS='${KUBE_APISERVER_OPTS} --kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP --kubelet-client-certificate=${APISERVER_CA_PATH}/apiserver.crt --kubelet-client-key=${APISERVER_CA_PATH}/apiserver.key'
+# etcd ca parameters
+ETCD_CA_OPTS='${ETCD_CA_OPTS}'
 " > /etc/sysconfig/kube-apiserver
 
 systemctl daemon-reload
@@ -265,7 +268,7 @@ WantedBy=multi-user.target
 echo "# configure file for kube-controller-manager
 
 # --master
-KUBE_MASTER='--master=http://127.0.0.1:${apiserver_insecure_port}'
+KUBE_MASTER='--master=http://${apiserver_insecure_bind_address}:${apiserver_insecure_port}'
 
 # other parameters
 KUBE_CONTROLLER_OPTS='--root-ca-file=${APISERVER_CA_PATH}/ca.crt --service-account-private-key-file=${APISERVER_CA_PATH}/apiserver.key'
@@ -302,7 +305,7 @@ WantedBy=multi-user.target
 
 echo "# configure file for kube-scheduler
 # --master
-KUBE_MASTER='--master=http://127.0.0.1:${apiserver_insecure_port}'
+KUBE_MASTER='--master=http://${apiserver_insecure_bind_address}:${apiserver_insecure_port}'
 
 # other parameters
 KUBE_SCHEDULER_OPTS=''
@@ -318,7 +321,7 @@ systemctl status -l kube-scheduler
 # STEP 09: create cluster role、cluster role binding
 
 single_etcd_server=$(echo ${etcd_servers} | cut -f1 -d ',')
-curl -L ${single_etcd_server}/v2/keys/flannel/network/config -XPUT -d value="{\"Network\": \"${flannel_network}\", \"SubnetLen\": 22, \"Backend\": {\"Type\": \"vxlan\", \"VNI\": 1}}"
+curl -L ${single_etcd_server}/v2/keys/flannel/network/config -XPUT -d value="{\"Network\": \"${flannel_network_ip_range}\", \"SubnetLen\": 22, \"Backend\": {\"Type\": \"vxlan\", \"VNI\": 1}}"
 cat <<EOF | kubectl -s http://127.0.0.1:${apiserver_insecure_port} apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
