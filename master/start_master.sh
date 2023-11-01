@@ -121,7 +121,7 @@ if [[ $master_ip_exist == false ]]; then
 fi
 
 
-# STEP 03: download and decompress kubernetes server installation package
+# step 03: download and decompress kubernetes server installation package
 
 # https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG/CHANGELOG-1.18.md#server-binaries-6
 
@@ -133,7 +133,7 @@ mv /tmp/master/kube* /usr/local/bin/
 
 
 
-# STEP 04: generate CA files
+# step 04: generate CA files
 
 mkdir -p $APISERVER_CA_PATH
 
@@ -177,7 +177,7 @@ openssl x509 -req -in ${APISERVER_CA_PATH}/apiserver.csr -CA ${APISERVER_CA_PATH
 
 
 
-# STEP 05: generate the token.csv file
+# step 05: generate the token.csv file
 
 mkdir -p ${APISERVER_AUTH_PATH}
 
@@ -186,7 +186,7 @@ echo $token,k8s-node,0 > ${APISERVER_AUTH_PATH}/token.csv
 
 
 
-# STEP 06: configure and start kube-apiserver by systemd
+# step 06: configure and start kube-apiserver by systemd
 
 echo -e "\033[36m[INFO] STEP 12: Start kube-apiserver...\033[0m"
 if service_exists kube-apiserver; then
@@ -243,7 +243,7 @@ sleep 8
 systemctl status -l kube-apiserver
 
 
-# STEP 07: configure and start kube-controller-manager by systemd
+# step 07: configure and start kube-controller-manager by systemd
 
 echo -e "\033[36m[INFO] STEP 13: Start kube-controller-manager...\033[0m"
 if service_exists kube-controller; then
@@ -281,7 +281,7 @@ sleep 5
 systemctl status -l kube-controller-manager
 
 
-# STEP 08: configure and start kube-scheduler by systemd
+# step 08: configure and start kube-scheduler by systemd
 
 echo -e "\033[36m[INFO] STEP 14: Start kube-scheduler...\033[0m"
 if service_exists kube-scheduler; then
@@ -318,7 +318,7 @@ sleep 5
 systemctl status -l kube-scheduler
 
 
-# STEP 09: create cluster role、cluster role binding
+# step 09: create cluster role、cluster role binding
 
 single_etcd_server=$(echo ${etcd_servers} | cut -f1 -d ',')
 curl -L ${single_etcd_server}/v2/keys/flannel/network/config -XPUT -d value="{\"Network\": \"${flannel_network_ip_range}\", \"SubnetLen\": 22, \"Backend\": {\"Type\": \"vxlan\", \"VNI\": 1}}"
