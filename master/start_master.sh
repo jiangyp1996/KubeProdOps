@@ -85,7 +85,7 @@ done
 
 
 
-# step 01 : check arguments
+# step 01 : check parameters
 
 if [ -z "$etcd_servers" ]; then
   echo -e "\033[31m[ERROR] --etcd-servers is absent\033[0m"
