@@ -215,9 +215,6 @@ WantedBy=multi-user.target
 " > /usr/lib/systemd/system/kube-apiserver.service
 
 
-KUBE_APISERVER_OPTS="--client-ca-file=${APISERVER_CA_PATH}/ca.crt --tls-private-key-file=${APISERVER_CA_PATH}/apiserver.key --tls-cert-file=${APISERVER_CA_PATH}/apiserver.crt --service-account-key-file=${APISERVER_CA_PATH}/apiserver.crt --token-auth-file=${APISERVER_AUTH_PATH}/token.csv"
-ETCD_CA_OPTS="--etcd-cafile=/etc/kubernetes/pki/ca.crt --etcd-certfile=/etc/kubernetes/pki/etcd_client.crt --etcd-keyfile=/etc/kubernetes/pki/etcd_client.key"
-
 echo "# configure file for kube-apiserver
 
 # --etcd-servers
@@ -231,9 +228,16 @@ INSECURE_PORT='--insecure-port=${apiserver_insecure_port}'
 # --secure-port
 SECURE_PORT='--secure-port=${apiserver_secure_port}'
 # other parameters
-KUBE_APISERVER_OPTS='${KUBE_APISERVER_OPTS} --kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP --kubelet-client-certificate=${APISERVER_CA_PATH}/apiserver.crt --kubelet-client-key=${APISERVER_CA_PATH}/apiserver.key'
+KUBE_APISERVER_OPTS='--client-ca-file=${APISERVER_CA_PATH}/ca.crt \\ 
+--tls-private-key-file=${APISERVER_CA_PATH}/apiserver.key \\
+--tls-cert-file=${APISERVER_CA_PATH}/apiserver.crt \\
+--service-account-key-file=${APISERVER_CA_PATH}/apiserver.crt \\
+--token-auth-file=${APISERVER_AUTH_PATH}/token.csv \\
+--kubelet-preferred-address-types=InternalIP,Hostname,InternalDNS,ExternalDNS,ExternalIP \\ 
+--kubelet-client-certificate=${APISERVER_CA_PATH}/apiserver.crt \\ 
+--kubelet-client-key=${APISERVER_CA_PATH}/apiserver.key'
 # etcd ca parameters
-ETCD_CA_OPTS='${ETCD_CA_OPTS}'
+ETCD_CA_OPTS='--etcd-cafile=${APISERVER_CA_PATH}/ca.crt --etcd-certfile=${APISERVER_CA_PATH}/etcd_client.crt --etcd-keyfile=${APISERVER_CA_PATH}/etcd_client.key'
 " > /etc/sysconfig/kube-apiserver
 
 systemctl daemon-reload
@@ -320,8 +324,6 @@ systemctl status -l kube-scheduler
 
 # step 09: create cluster role、cluster role binding
 
-single_etcd_server=$(echo ${etcd_servers} | cut -f1 -d ',')
-curl -L ${single_etcd_server}/v2/keys/flannel/network/config -XPUT -d value="{\"Network\": \"${flannel_network_ip_range}\", \"SubnetLen\": 22, \"Backend\": {\"Type\": \"vxlan\", \"VNI\": 1}}"
 cat <<EOF | kubectl -s http://127.0.0.1:${apiserver_insecure_port} apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole

@@ -3,9 +3,10 @@
 
 # parameters
 cluster_name=
-apiserver_ip=
+master_ip=
 apiserver_secure_port=
-container_data_root="/data/"
+container_data_root="/data"
+cluster_dns="172.16.40.1"
 
 
 # constants
@@ -22,11 +23,17 @@ do
     --cluster-name=*)
       cluster_name="${arg#*=}"
       ;;
-    --apiserver-ip=*)
-      apiserver_ip="${arg#*=}"
+    --master-ip=*)
+      master_ip="${arg#*=}"
       ;;
     --apiserver-secure-port=*)
       apiserver_secure_port="${arg#*=}"
+      ;;
+    --container-data-root=*)
+      container_data_root="${arg#*=}"
+      ;;
+    --cluster-dns=*)
+      cluster_dns="${arg#*=}"
       ;;
     *)
       print_help
@@ -41,14 +48,18 @@ function command_exists ()
   command -v "$@" > /dev/null 2>&1
 }
 
+function service_exists ()
+{
+  systemctl list-unit-files | grep $1 > /dev/null 2>&1
+}
+
 function print_help() {
   echo -e "
   \033[0;33mParameters explanation:
 
-  --etcd-servers                   [required]  etcd cluster client ip
   --master-ip                      [required]  master ip
-  --service-cluster-ip-range       [optional]  apiserver parameter --service-cluster-ip-range, default 172.16.0.0/13
-  --flannel-network-ip-range       [optional]  cluster pod ip range, default 172.24.0.0/13
+  --apiserver-secure-port          [required]  apiserver parameter --service-cluster-ip-range, default 172.16.0.0/13
+  --container-data-root            [optional]  the storage path of pod and container
   --cluster-name                   [optional]  cluster name, default my-k8s
   \033[0m
   "
@@ -87,10 +98,6 @@ echo -e "\033[32m[OK] Check kernel OK, current kernel version is ${kernel_parts_
 
 # step 02 : check parameters
 
-# if [ -z $hostname_override ]; then
-#   hostname_override=$(hostname)
-# fi
-
 
 # step 03 : configure sysctl
 
@@ -120,6 +127,8 @@ fi
 
 # step 04 : generate kubeconfig
 
+echo -e "\033[36m[INFO] STEP 04: Generate kubeconfig...\033[0m"
+
 mkdir -p $(dirname ${KUBE_CONFIG_FILE})
 
 if [ ! -f /tmp/ca.crt ]; then
@@ -134,7 +143,7 @@ echo "apiVersion: v1
 clusters:
 - cluster:
     certificate-authority: ${APISERVER_CA_PATH}/ca.crt
-    server: https://${apiserver_ip}:${apiserver_secure_port}
+    server: https://${master_ip}:${apiserver_secure_port}
   name: default
 contexts:
 - context:
@@ -149,12 +158,10 @@ users:
   user:
     token: ${token}" > ${KUBE_CONFIG_FILE}
 
-if [ `grep -c kubeconfig ~/.bashrc` -eq 0 ]; then
-  echo "alias kubectl='kubectl --kubeconfig ${KUBE_CONFIG_FILE}'" >> ~/.bashrc
-fi
-
 
 # step 05 : add DNS server into resolv.conf
+
+echo -e "\033[36m[INFO] STEP 05: Add DNS server into resolv.conf...\033[0m"
 
 cluster_dns_search="default.svc.${CLUSTER_DOMAIN} svc.${CLUSTER_DOMAIN} ${CLUSTER_DOMAIN}"
 host_self_dns=
@@ -188,7 +195,9 @@ done
 set +e
 
 
-# step 06 : check kubernetes-node-linux-amd64.tar.gz and docker-19.03.14.tgz
+# step 06 : download kubernetes-node-linux-amd64.tar.gz and docker-19.03.14.tgz
+
+echo -e "\033[36m[INFO] STEP 06: Download kubernetes-node-linux-amd64.tar.gz and docker-19.03.14.tgz...\033[0m"
 
 if [ ! -f "/tmp/kubernetes-node-linux-amd64.tar.gz" ]; then
   wget https://dl.k8s.io/v1.18.4/kubernetes-node-linux-amd64.tar.gz -P /tmp 
@@ -206,12 +215,18 @@ cp -rf /tmp/docker/* /usr/local/bin/
 
 # step 07 : install docker
 
+echo -e "\033[36m[INFO] STEP 07: Install docker...\033[0m"
+
 if command_exists docker ; then
   echo -e "\033[36m[INFO] docker command already exists on this system.\033[0m"
   echo -e "\033[36m/etc/sysconfig/docker and /lib/systemd/system/docker.service files will be reset.\033[0m"
   echo -e "\033[36mYou may press Ctrl+C now to abort this script.\033[0m"
   echo -e "\033[36mwaiting for 10 seconds...\033[0m"
   sleep 10
+fi
+
+if service_exists docker; then
+  systemctl stop docker
 fi
 
 echo "# /usr/lib/systemd/system/docker.service
@@ -224,7 +239,7 @@ Wants=network-online.target
 [Service]
 Type=notify
 EnvironmentFile=/etc/sysconfig/docker
-ExecStart=/usr/bin/dockerd \$DOCKER_OPTS \\
+ExecStart=/usr/local/bin/dockerd \$DOCKER_OPTS \\
 \$DOCKER_STORAGE_OPTIONS \\
 \$DOCKER_NETWORK_OPTIONS \\
 \$DOCKER_LOG_LEVEL
@@ -243,21 +258,114 @@ Restart=always
 [Install]
 WantedBy=multi-user.target" > /usr/lib/systemd/system/docker.service
 
+mkdir -p ${container_data_root}/docker
 echo "DOCKER_OPTS=\"--log-level=warn --storage-driver=overlay2 --userland-proxy=false --log-opt max-size=1g --log-opt max-file=5\"
-DOCKER_STORAGE_OPTIONS=\"--data-root /container/domeos/docker\"
+DOCKER_STORAGE_OPTIONS=\"--data-root ${container_data_root}/docker\"
 DOCKER_LOG_LEVEL=\"--log-level warn\"
-" > 
+" > /etc/sysconfig/docker
+
+systemctl start docker
+systemctl enable docker
+sleep 8
+systemctl status -l docker
 
 
 # step 08 : install kube-proxy
 
+echo -e "\033[36m[INFO] STEP 08: Install kube-proxy...\033[0m"
+
+if service_exists kube-proxy; then
+  systemctl stop kube-proxy
+fi
+
+echo "[Unit]
+Description=kube-proxy
+
+[Service]
+EnvironmentFile=/etc/sysconfig/kube-proxy
+ExecStart=/usr/local/bin/kube-proxy \$API_SERVERS \\
+          \$KUBE_PROXY_OPTS
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+" > /lib/systemd/system/kube-proxy.service
+
+echo "# configure file for kube-proxy
+# --api-servers
+API_SERVERS='--kubeconfig=${KUBE_CONFIG_FILE}'
+# other parameters
+KUBE_PROXY_OPTS='-masquerade-all=true --proxy-mode=iptables --conntrack-max-per-core=100000'
+" > /etc/sysconfig/kube-proxy
+
+systemctl daemon-reload
+systemctl start kube-proxy
+systemctl enable kube-proxy
+sleep 5
+systemctl status -l kube-proxy
+
 
 # step 09 : install kubelet
 
+echo -e "\033[36m[INFO] STEP 09: Install kubelet...\033[0m"
+
+if service_exists kubelet; then
+  systemctl stop kubelet
+fi
+
+echo "[Unit]
+Description=kubelet
+After=docker.service
+
+[Service]
+EnvironmentFile=/etc/sysconfig/kubelet
+ExecStart=/usr/local/bin/kubelet \$API_SERVERS \\
+          \$CLUSTER_DNS \\
+          \$CLUSTER_DOMAIN \\
+          \$ROOT_DIR \\
+          \$HOSTNAME_OVERRIDE \\
+          \$KUBELET_OPTS \\
+          \$KUBECONFIG
+Restart=always
+StartLimitInterval=0
+
+[Install]
+WantedBy=multi-user.target
+" > /lib/systemd/system/kubelet.service
+
+mkdir -p ${container_data_root}/k8s
+echo "# configure file for kubelet
+# --api-servers
+API_SERVERS='--kubeconfig=${KUBE_CONFIG_FILE}'
+# --cluster-dns
+CLUSTER_DNS='--cluster-dns=${cluster_dns}'
+# --cluster-domain
+CLUSTER_DOMAIN='--cluster-domain=${CLUSTER_DOMAIN}'
+# --root-dir
+ROOT_DIR='--root-dir=${container_data_root}/k8s'
+# other parameters
+KUBELET_OPTS='--anonymous-auth=false \\ 
+--client-ca-file=${APISERVER_CA_PATH}/ca.crt \\ 
+--authentication-token-webhook=true \\ 
+--read-only-port=0 \\ 
+--max-pods=70 \\ 
+--allowed-unsafe-sysctls=\"net.*,kernel.shm*,kernel.msg*,fs.mqueue.*\" --fail-swap-on=false'
+" > /etc/sysconfig/kubelet
+
+systemctl daemon-reload
+systemctl start kubelet
+systemctl enable kubelet
+sleep 5
+systemctl status -l kubelet
 
 
+# step 10 : configure kubectl
 
+echo -e "\033[36m[INFO] STEP 10: Configure kubectl...\033[0m"
 
+if [ $(grep -c kubeconfig ~/.bashrc) -eq 0 ]; then
+  echo "alias kubectl='kubectl --kubeconfig ${KUBE_CONFIG_FILE}'" >> ~/.bashrc
+fi
 
 
 

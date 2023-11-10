@@ -101,6 +101,7 @@ done
 
 # step 03: process etcd and etcdctl binary package
 
+# https://github.com/etcd-io/etcd/releases/download/v3.5.4/etcd-v3.5.4-linux-amd64.tar.gz
 mkdir -p ${ETCD_INSTALLATION_PATH}/${etcd_version}
 chmod +x /tmp/etcd
 chmod +x /tmp/etcdctl
