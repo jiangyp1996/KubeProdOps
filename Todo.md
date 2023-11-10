@@ -13,4 +13,16 @@
 
 ### Node
 
-- [ ] a preliminary installation framework
+- [x] a preliminary installation framework
+- [ ] kube-flannel manifest
+
+
+### component
+- [ ] coredns
+
+
+### doc
+
+- [ ] README
+
+
