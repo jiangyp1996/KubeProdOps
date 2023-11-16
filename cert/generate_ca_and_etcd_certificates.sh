@@ -36,22 +36,39 @@ do
 done
 
 
+# check parameters
 
-# master, etcd, node
-mkdir -p ${cluster_name}/ca 
-# server: etcd  client: master, node
-mkdir -p ${cluster_name}/etcd
+if [ -z $cluster_name ]; then
+  echo -e "\033[31m[ERROR] --cluster-name is absent, it's an important classfied path name to store your ca cert files in your localhost.\033[0m"
+  exit 1
+fi
+
+if [ -z $master_ip ]; then
+  echo -e "\033[31m[ERROR] --master-ip is absent.\033[0m"
+  exit 1
+fi
+
+if [ -z $etcd_servers_ip ]; then
+  echo -e "\033[31m[ERROR] --etcd-servers-ip is absent.\033[0m"
+  exit 1
+fi
 
 
-# step 1 : generate ca files
+# generate cert files
 
-openssl genrsa -out ./${cluster_name}/ca/ca.key 2048
-openssl req -x509 -new -nodes -key ./${cluster_name}/ca/ca.key -subj "/CN=${master_ip}" -days 36500 -out ./${cluster_name}/ca/ca.crt
+etcd_servers_ip_list=$(echo ${etcd_servers_ip} | awk -F= '{print $2}' | tr ',' '\n')
 
+if [ ! -f ./${cluster_name}/lock ]; then
+  mkdir -p ${cluster_name}/ca
+  mkdir -p ${cluster_name}/etcd
 
-# step 2 : generate etcd files
+  # step 1 : generate ca files
+  openssl genrsa -out ./${cluster_name}/ca/ca.key 2048
+  openssl req -x509 -new -nodes -key ./${cluster_name}/ca/ca.key -subj "/CN=${master_ip}" -days 36500 -out ./${cluster_name}/ca/ca.crt
 
-echo "[ req ]
+  # step 2 : generate etcd files
+
+  echo "[ req ]
 req_extensions = v3_req
 distinguished_name  = req_distinguished_name
 [ req_distinguished_name ]
@@ -64,31 +81,35 @@ subjectAltName=@alt_names
 [ alt_names ]
 " > ./${cluster_name}/etcd/etcd_ssl.cnf
 
-etcd_servers_ip_list=$(echo ${etcd_servers_ip} | awk -F= '{print $2}' | tr ',' '\n')
+  index=1
+  for ip in ${etcd_servers_ip_list}
+  do
+    echo "IP.$index = $ip" >> ./${cluster_name}/etcd/etcd_ssl.cnf
+    ((index++))
+  done
 
-index=1
-for ip in ${etcd_servers_ip_list}
-do
-  echo "IP.$index = $ip" >> ./${cluster_name}/etcd/etcd_ssl.cnf
-  ((index++))
-done
+  openssl genrsa -out ./${cluster_name}/etcd/etcd_server.key 2048
+  openssl req -new -key ./${cluster_name}/etcd/etcd_server.key -config ./${cluster_name}/etcd/etcd_ssl.conf -subj "/CN=etcd-server" -out ./${cluster_name}/etcd/etcd_server.csr
+  openssl x509 -req -in ./${cluster_name}/etcd/etcd_server.csr -CA ./${cluster_name}/ca/ca.crt -CAkey ./${cluster_name}/ca/ca.key -CAcreateserial -days 36500 -extensions v3_req -extfile ./${cluster_name}/etcd/etcd_ssl.conf -out ./${cluster_name}/etcd/etcd_server.crt
 
-openssl genrsa -out ./${cluster_name}/etcd/etcd_server.key 2048
-openssl req -new -key ./${cluster_name}/etcd/etcd_server.key -config ./${cluster_name}/etcd/etcd_ssl.conf -subj "/CN=etcd-server" -out ./${cluster_name}/etcd/etcd_server.csr
-openssl x509 -req -in ./${cluster_name}/etcd/etcd_server.csr -CA ./${cluster_name}/ca/ca.crt -CAkey ./${cluster_name}/ca/ca.key -CAcreateserial -days 36500 -extensions v3_req -extfile ./${cluster_name}/etcd/etcd_ssl.conf -out ./${cluster_name}/etcd/etcd_server.crt
+  openssl genrsa -out ./${cluster_name}/etcd/etcd_client.key 2048
+  openssl req -new -key ./${cluster_name}/etcd/etcd_client.key -config ./${cluster_name}/etcd/etcd_ssl.conf -subj "/CN=etcd-client" -out ./${cluster_name}/etcd/etcd_client.csr
+  openssl x509 -req -in ./${cluster_name}/etcd/etcd_client.csr -CA ./${cluster_name}/ca/ca.crt -CAkey ./${cluster_name}/ca/ca.key -CAcreateserial -days 36500 -extensions v3_req -extfile ./${cluster_name}/etcd/etcd_ssl.conf -out ./${cluster_name}/etcd/etcd_client.crt
 
-openssl genrsa -out ./${cluster_name}/etcd/etcd_client.key 2048
-openssl req -new -key ./${cluster_name}/etcd/etcd_client.key -config ./${cluster_name}/etcd/etcd_ssl.conf -subj "/CN=etcd-client" -out ./${cluster_name}/etcd/etcd_client.csr
-openssl x509 -req -in ./${cluster_name}/etcd/etcd_client.csr -CA ./${cluster_name}/ca/ca.crt -CAkey ./${cluster_name}/ca/ca.key -CAcreateserial -days 36500 -extensions v3_req -extfile ./${cluster_name}/etcd/etcd_ssl.conf -out ./${cluster_name}/etcd/etcd_client.crt
+  echo "" > ./${cluster_name}/lock
+fi
 
+
+# sent to remote ip
 
 CERT_STORAGE_PATH="/etc/kubernetes/pki/"
-
 for ip in ${etcd_servers_ip_list}
 do
+  ssh ${ip} -q -o PreferredAuthentications=publickey -o StrictHostKeyChecking=no mkdir -p ${CERT_STORAGE_PATH}
   scp ./${cluster_name}/ca/ca.crt ./${cluster_name}/etcd/etcd_server.key ./${cluster_name}/etcd/etcd_server.crt root@${ip}:${CERT_STORAGE_PATH}
 done
 
+ssh ${master_ip} -q -o PreferredAuthentications=publickey -o StrictHostKeyChecking=no mkdir -p ${CERT_STORAGE_PATH}
 scp ./${cluster_name}/ca/ca.crt ./${cluster_name}/etcd/etcd_client.key ./${cluster_name}/etcd/etcd_client.crt root@${master_ip}:${CERT_STORAGE_PATH}
 
 

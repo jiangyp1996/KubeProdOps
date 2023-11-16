@@ -4,7 +4,7 @@
 # parameters
 cluster_name=
 master_ip=
-apiserver_secure_port=
+apiserver_secure_port=6443
 container_data_root="/data"
 cluster_dns="172.16.40.1"
 
@@ -13,7 +13,6 @@ cluster_dns="172.16.40.1"
 KUBE_CONFIG_FILE="/etc/sysconfig/kubeconfig"
 APISERVER_CA_PATH="/etc/kubernetes/pki"
 CLUSTER_DOMAIN="cluster.local"
-RESOLV_FILE="/etc/resolv.conf"
 COREDNS_SVC_IP="172.16.40.1"
 
 
@@ -57,10 +56,10 @@ function print_help() {
   echo -e "
   \033[0;33mParameters explanation:
 
+  --cluster-name                   [optional]  cluster name, such as my-k8s
   --master-ip                      [required]  master ip
-  --apiserver-secure-port          [required]  apiserver parameter --service-cluster-ip-range, default 172.16.0.0/13
-  --container-data-root            [optional]  the storage path of pod and container
-  --cluster-name                   [optional]  cluster name, default my-k8s
+  --apiserver-secure-port          [optional]  apiserver secure port, default 6443
+  --container-data-root            [optional]  the storage path of pod and container, default /data
   \033[0m
   "
 }
@@ -97,6 +96,11 @@ echo -e "\033[32m[OK] Check kernel OK, current kernel version is ${kernel_parts_
 
 
 # step 02 : check parameters
+
+if [ -z $master_ip ]; then
+  echo -e "\033[31m[ERROR] --master-ip is absent.\033[0m"
+  exit 1
+fi
 
 
 # step 03 : configure sysctl
@@ -135,8 +139,6 @@ if [ ! -f /tmp/ca.crt ]; then
 	echo -e "\033[31m[ERROR] File /tmp/ca.crt does not exist. Please check whether generate_ca_and_etcd_certificates.sh is executed.\033[0m"
 	exit 1
 fi
-
-${APISERVER_CA_PATH}
 
 token=`echo ${cluster_name} | base64`
 echo "apiVersion: v1
@@ -183,14 +185,14 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
     host_self_dns[${host_self_dns_p}]="$line"
     let host_self_dns_p++
   fi
-done < $RESOLV_FILE
+done < /etc/resolv.conf
 set -e
-chattr -i $RESOLV_FILE
-echo "search ${cluster_dns_search}" > $RESOLV_FILE
-echo "nameserver ${COREDNS_SVC_IP}" >> $RESOLV_FILE
+chattr -i /etc/resolv.conf
+echo "search ${cluster_dns_search}" > /etc/resolv.conf
+echo "nameserver ${COREDNS_SVC_IP}" >> /etc/resolv.conf
 for i in "${host_self_dns[@]}"
 do
-  echo $i >> $RESOLV_FILE
+  echo $i >> /etc/resolv.conf
 done
 set +e
 
@@ -338,7 +340,7 @@ echo "# configure file for kubelet
 # --api-servers
 API_SERVERS='--kubeconfig=${KUBE_CONFIG_FILE}'
 # --cluster-dns
-CLUSTER_DNS='--cluster-dns=${cluster_dns}'
+CLUSTER_DNS='--cluster-dns=${COREDNS_SVC_IP}'
 # --cluster-domain
 CLUSTER_DOMAIN='--cluster-domain=${CLUSTER_DOMAIN}'
 # --root-dir
@@ -365,6 +367,7 @@ echo -e "\033[36m[INFO] STEP 10: Configure kubectl...\033[0m"
 
 if [ $(grep -c kubeconfig ~/.bashrc) -eq 0 ]; then
   echo "alias kubectl='kubectl --kubeconfig ${KUBE_CONFIG_FILE}'" >> ~/.bashrc
+  source ~/.bashrc
 fi
 
 
