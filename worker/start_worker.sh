@@ -7,13 +7,13 @@ master_ip=
 apiserver_secure_port=6443
 container_data_root="/data"
 cluster_dns="172.16.40.1"
+k8s_version="1.18.4"
 
 
 # constants
 KUBE_CONFIG_FILE="/etc/sysconfig/kubeconfig"
 APISERVER_CA_PATH="/etc/kubernetes/pki"
 CLUSTER_DOMAIN="cluster.local"
-COREDNS_SVC_IP="172.16.40.1"
 
 
 for arg in "$@"
@@ -33,6 +33,9 @@ do
       ;;
     --cluster-dns=*)
       cluster_dns="${arg#*=}"
+      ;;
+    --k8s-version=*)
+      k8s_version="${arg#*=}"
       ;;
     *)
       print_help
@@ -56,10 +59,11 @@ function print_help() {
   echo -e "
   \033[0;33mParameters explanation:
 
-  --cluster-name                   [optional]  cluster name, such as my-k8s
+  --cluster-name                   [required]  cluster name, such as my-k8s
   --master-ip                      [required]  master ip
   --apiserver-secure-port          [optional]  apiserver secure port, default 6443
   --container-data-root            [optional]  the storage path of pod and container, default /data
+  --cluster-dns                    [optional]  CoreDNA Service IP, default 172.16.40.1
   \033[0m
   "
 }
@@ -96,6 +100,11 @@ echo -e "\033[32m[OK] Check kernel OK, current kernel version is ${kernel_parts_
 
 
 # step 02 : check parameters
+
+if [ -z $cluster_name ]; then
+  echo -e "\033[31m[ERROR] --cluster-name is absent.\033[0m"
+  exit 1
+fi
 
 if [ -z $master_ip ]; then
   echo -e "\033[31m[ERROR] --master-ip is absent.\033[0m"
@@ -134,11 +143,12 @@ fi
 echo -e "\033[36m[INFO] STEP 04: Generate kubeconfig...\033[0m"
 
 mkdir -p $(dirname ${KUBE_CONFIG_FILE})
-
+mkdir -p ${APISERVER_CA_PATH}
 if [ ! -f /tmp/ca.crt ]; then
 	echo -e "\033[31m[ERROR] File /tmp/ca.crt does not exist. Please check whether generate_ca_and_etcd_certificates.sh is executed.\033[0m"
 	exit 1
 fi
+mv /tmp/ca.crt ${APISERVER_CA_PATH}
 
 token=`echo ${cluster_name} | base64`
 echo "apiVersion: v1
@@ -168,16 +178,17 @@ echo -e "\033[36m[INFO] STEP 05: Add DNS server into resolv.conf...\033[0m"
 cluster_dns_search="default.svc.${CLUSTER_DOMAIN} svc.${CLUSTER_DOMAIN} ${CLUSTER_DOMAIN}"
 host_self_dns=
 host_self_dns_p=0
+
 while IFS='' read -r line || [[ -n "$line" ]]; do
   name_tmp=$(echo $line | cut -f1 -d ' ')
   value_tmp=$(echo $line | cut -f2- -d ' ')
-  if [ "$name_tmp" == "nameserver" ]; then
-    if [ "172.16.40.1" != "$value_tmp" ]; then
+  if [ ${name_tmp} == "nameserver" ]; then
+    if [ ${value_tmp} != ${cluster_dns} ]; then
       host_self_dns[${host_self_dns_p}]="$line"
       let host_self_dns_p++
     fi
-  elif [ "$name_tmp" == "search" ]; then
-    if [ "$cluster_dns_search" != "$value_tmp" ]; then
+  elif [ ${name_tmp} == "search" ]; then
+    if [ ${cluster_dns_search} != ${value_tmp} ]; then
       host_self_dns[${host_self_dns_p}]="$line"
       let host_self_dns_p++
     fi
@@ -186,10 +197,12 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
     let host_self_dns_p++
   fi
 done < /etc/resolv.conf
+
 set -e
 chattr -i /etc/resolv.conf
+sed -i -e "/cluster.local/d" /etc/resolv.conf
 echo "search ${cluster_dns_search}" > /etc/resolv.conf
-echo "nameserver ${COREDNS_SVC_IP}" >> /etc/resolv.conf
+echo "nameserver ${cluster_dns}" >> /etc/resolv.conf
 for i in "${host_self_dns[@]}"
 do
   echo $i >> /etc/resolv.conf
@@ -202,7 +215,7 @@ set +e
 echo -e "\033[36m[INFO] STEP 06: Download kubernetes-node-linux-amd64.tar.gz and docker-19.03.14.tgz...\033[0m"
 
 if [ ! -f "/tmp/kubernetes-node-linux-amd64.tar.gz" ]; then
-  wget https://dl.k8s.io/v1.18.4/kubernetes-node-linux-amd64.tar.gz -P /tmp 
+  wget https://dl.k8s.io/v${k8s_version}/kubernetes-node-linux-amd64.tar.gz -P /tmp 
 fi
 tar -zxvf /tmp/kubernetes-node-linux-amd64.tar.gz -C /tmp
 cp -rf /tmp/kubernetes/node/bin/kube* /usr/local/bin/
@@ -340,7 +353,7 @@ echo "# configure file for kubelet
 # --api-servers
 API_SERVERS='--kubeconfig=${KUBE_CONFIG_FILE}'
 # --cluster-dns
-CLUSTER_DNS='--cluster-dns=${COREDNS_SVC_IP}'
+CLUSTER_DNS='--cluster-dns=${cluster_dns}'
 # --cluster-domain
 CLUSTER_DOMAIN='--cluster-domain=${CLUSTER_DOMAIN}'
 # --root-dir
