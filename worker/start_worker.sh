@@ -7,7 +7,7 @@ master_ip=
 apiserver_secure_port=6443
 container_data_root="/data"
 cluster_dns="172.16.40.1"
-k8s_version="1.18.4"
+k8s_version="1.18.14"
 
 
 # constants
@@ -38,7 +38,7 @@ do
       k8s_version="${arg#*=}"
       ;;
     *)
-      print_help
+      print_help()
       exit 0
       ;;
   esac
@@ -310,7 +310,7 @@ echo "# configure file for kube-proxy
 # --api-servers
 API_SERVERS='--kubeconfig=${KUBE_CONFIG_FILE}'
 # other parameters
-KUBE_PROXY_OPTS='-masquerade-all=true --proxy-mode=iptables --conntrack-max-per-core=100000'
+KUBE_PROXY_OPTS='--masquerade-all=true --proxy-mode=iptables --conntrack-max-per-core=100000'
 " > /etc/sysconfig/kube-proxy
 
 systemctl daemon-reload
@@ -359,12 +359,7 @@ CLUSTER_DOMAIN='--cluster-domain=${CLUSTER_DOMAIN}'
 # --root-dir
 ROOT_DIR='--root-dir=${container_data_root}/k8s'
 # other parameters
-KUBELET_OPTS='--anonymous-auth=false \\ 
---client-ca-file=${APISERVER_CA_PATH}/ca.crt \\ 
---authentication-token-webhook=true \\ 
---read-only-port=0 \\ 
---max-pods=70 \\ 
---allowed-unsafe-sysctls=\"net.*,kernel.shm*,kernel.msg*,fs.mqueue.*\" --fail-swap-on=false'
+KUBELET_OPTS='--anonymous-auth=false --client-ca-file=${APISERVER_CA_PATH}/ca.crt --authentication-token-webhook=true --read-only-port=0 --max-pods=70 --allowed-unsafe-sysctls=\"net.*,kernel.shm*,kernel.msg*,fs.mqueue.*\" --fail-swap-on=false'
 " > /etc/sysconfig/kubelet
 
 systemctl daemon-reload
@@ -379,7 +374,7 @@ systemctl status -l kubelet
 echo -e "\033[36m[INFO] STEP 10: Configure kubectl...\033[0m"
 
 if [ $(grep -c kubeconfig ~/.bashrc) -eq 0 ]; then
-  echo "alias kubectl='kubectl --kubeconfig ${KUBE_CONFIG_FILE}'" >> ~/.bashrc
+  echo "alias kubectl='/usr/local/bin/kubectl --kubeconfig ${KUBE_CONFIG_FILE}'" >> ~/.bashrc
   source ~/.bashrc
 fi
 

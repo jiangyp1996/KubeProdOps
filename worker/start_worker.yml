@@ -13,8 +13,8 @@
      - apiserver_secure_port: "{{ hostvars[inventory_hostname]['apiserver_secure_port'] }}"
      - container_data_root: "{{ hostvars[inventory_hostname]['container_data_root'] }}"
      - cluster_dns: "{{ hostvars[inventory_hostname]['cluster_dns'] }}"
-     - k8s_version: "{{ hostvars[inventory_hostname]['k8s_version'] | default('1.18.4') }}"
-    command: /bin/sh /tmp/start_node_centos_auth_1.28.sh --cluster-name {{ cluster_name }} --master-ip {{ master_ip }} --container-data-root {{ container_data_root }} --cluster-dns {{ cluster_dns }} --k8s-version {{ k8s_version }}
+     - k8s_version: "{{ hostvars[inventory_hostname]['k8s_version'] | default('1.18.14') }}"
+    command: /bin/sh /tmp/start_node_centos_auth_1.28.sh --cluster-name={{ cluster_name }} --master-ip={{ master_ip }} --container-data-root={{ container_data_root }} --cluster-dns={{ cluster_dns }} --k8s-version={{ k8s_version }}
     register: result
   - debug:
       msg: "{{ result.stdout }}"
