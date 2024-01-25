@@ -35,17 +35,17 @@ do
     --cluster-name=*)
       cluster_name="${arg#*=}"
       ;;
-    --distribution-target=*)
-      distribution-target="${arg#*=}"
+    --distribute-target=*)
+      distribute_target="${arg#*=}"
       ;;
     --etcd-ip-list=*)
-      etcd-ip-list="${arg#*=}"
+      etcd_ip_list="${arg#*=}"
       ;;
     --master-ip-list=*)
-      master-ip-list="${arg#*=}"
+      master_ip_list="${arg#*=}"
       ;;
     --worker-ip-list=*)
-      worker-ip-list="${arg#*=}"
+      worker_ip_list="${arg#*=}"
       ;;
     *)
       print_help
@@ -75,10 +75,11 @@ fi
 
 # step 02 : distribute ca cert
 
-func distribute() {
+function distribute() {
   if [ -n $1 ]; then
-    ip_list=$(echo $1 | awk -F= '{print $2}' | tr ',' '\n')
-    for ip in ${ip_list}
+  	echo "=== distribute ca.cart to $2"
+    IFS="," read -ra ip_list <<< $1
+    for ip in ${ip_list[@]}
     do
       ssh ${ip} -q -o PreferredAuthentications=publickey -o StrictHostKeyChecking=no mkdir -p ${CERT_STORAGE_PATH}
       scp ./${cluster_name}/ca/ca.crt root@${ip}:${CERT_STORAGE_PATH}
@@ -86,15 +87,16 @@ func distribute() {
   fi
 }
 
-distribute_target_list=$(echo ${distribute_target} | awk -F= '{print $2}' | tr ',' '\n')
-for target in ${distribute_target_list}
+IFS="," read -ra distribute_target_list <<< ${distribute_target}
+for target in ${distribute_target_list[@]}
 do 
+  echo "=== current target is : ${target}" 
   if [ $target == "etcd" ]; then
-  	distribute ${etcd_ip_list}
+  	distribute ${etcd_ip_list} ${target}
   elif [ $target == "master" ]; then
-  	distribute ${master_ip_list}
+  	distribute ${master_ip_list} ${target}
   elif [ $target == "worker" ]; then
-  	distribute ${worker_ip_list}
+  	distribute ${worker_ip_list} ${target}
   fi
 done
 
