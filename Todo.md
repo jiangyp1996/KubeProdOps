@@ -1,20 +1,31 @@
+### Cert
+- [x] generate ca cert
+- [x] generate and distribute etcd cert
+- [x] generate and distribute master cert
+- [x] test
+
+
+
 ### Etcd
 
-- [x] add CA certification
-
+- [x] shell scripts (https)
+- [x] test
 
 
 
 ### Master
 
-- [x] test CA certification
+- [ ] shell scripts 
 - [ ] how to handle binary installation packages
+- [ ] test
 
 
 ### Node
 
 - [x] a preliminary installation framework
+- [ ] shell scripts
 - [ ] kube-flannel manifest
+- [ ] if generating master cert uses a custom cluster_domain, you also need to do the same here
 
 
 ### component
@@ -26,3 +37,6 @@
 - [ ] README
 
 
+### k8s version
+- [ ] v1.18
+- [ ] v1.28

@@ -1,11 +1,19 @@
-### Certificate
+# Certificate
 
 1. Generate CA cert
 
-2. Distribute CA cert to ETCD or MASTER or WORKER
+```
+bash generate_ca_cert.sh --cluster-name=my-k8s --vip=10.18.10.100
+```
 
-3. Generate and distribute ETCD cert
+2. Generate and distribute ETCD and CA cert
 
-4. Generate and distribute MASTER cert
+```
+bash generate_and_distribute_etcd_cert.sh --cluster-name=my-k8s --etcd-servers-ip=10.18.10.1,10.18.10.2,10.18.10.3
+```
 
-5. Generate and distribute WORKER cert
+3. Generate and distribute MASTER and CA cert
+
+```
+bash generate_and_distribute_master_cert.sh --cluster-name=my-k8s --master-servers-ip=10.18.10.1,10.18.10.2 --vip=10.18.10.100
+```

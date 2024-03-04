@@ -3,7 +3,7 @@
 
 # parameters 
 cluster_nodes=
-data_path=/data
+data_dir=/data/etcd
 etcd_version=3.5.4
 
 # constants
@@ -20,8 +20,11 @@ print_help() {
 	\033[0;33mParameters explanation:
 
     --cluster-nodes      [required]  etcd cluster peer nodes
-    --data-path          [required]  etcd data storage root path
-    --etcd_version       [required]  etcd version, default 3.5.4\033[0m
+    --data-dir           [optional]  etcd data storage root path, default /data/etcd
+    --etcd_version       [optional]  etcd version, default 3.5.4
+
+    For example:
+    bash start_etcd.sh --cluster-nodes=10.18.10.100,10.18.10.101,10.18.10.102\033[0m
 	"
 }
 
@@ -38,8 +41,8 @@ do
 		--cluster-nodes=*)
       cluster_nodes="${arg#*=}"
       ;;
-    --data-path=*)
-      data_path="${arg#*=}"
+    --data-dir=*)
+      data_dir="${arg#*=}"
       ;;
     --etcd-version=*)
       etcd_version="${arg#*=}"
@@ -61,7 +64,7 @@ else
   echo "--cluster-nodes: $cluster_nodes"
 fi
 
-mkdir -p ${root_dir}/etcd
+mkdir -p ${data_dir}
 
 
 # step 02: check if local IP is in cluster_nodes
@@ -140,7 +143,7 @@ INITIAL_CLUSTER='-initial-cluster ${format_cluster_nodes}'
 # -initial-cluster-state
 INITIAL_CLUSTER_STATE='-initial-cluster-state new'
 # -data-dir
-DATA_DIR='-data-dir ${data_path}'
+DATA_DIR='-data-dir ${data_dir}'
 # other parameters
 ETCD_OPTS='${ETCD_OPTS}'
 " > /etc/sysconfig/etcd

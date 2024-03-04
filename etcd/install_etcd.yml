@@ -5,17 +5,20 @@
   tasks:
   - name: copy start_etcd.sh 
     copy: src=./start_etcd.sh dest=/tmp/start_etcd.sh
-  - name: copy etcd and etcdctl
+  - name: copy etcd
     copy: src=./package/{{ etcd_version }}/etcd dest=/tmp/etcd
+    vars:
+      - etcd_version: "{{ hostvars[inventory_hostname]['etcd_version'] }}"
+  - name: copy etcdctl
     copy: src=./package/{{ etcd_version }}/etcdctl dest=/tmp/etcdctl
     vars:
       - etcd_version: "{{ hostvars[inventory_hostname]['etcd_version'] }}"
   - name: start installing etcd
-    command: /bin/sh /tmp/start_etcd.sh --cluster-nodes={{ allips }} --data-path={{ data_path }} --etcd-version={{ etcd_version }}
+    command: /bin/sh /tmp/start_etcd.sh --cluster-nodes={{ allips }} --data-dir={{ data_dir }} --etcd-version={{ etcd_version }}
     register: result
     vars:
       - etcd_version: "{{ hostvars[inventory_hostname]['etcd_version'] }}"
-      - data_path: "{{ hostvars[inventory_hostname]['store_root_path'] }}/etcd"
+      - data_dir: "{{ hostvars[inventory_hostname]['data_dir'] }}"
       - allips: "{{ groups['etcd'] | join(',') }}"
   - debug:
       msg: "{{result.stdout}}"

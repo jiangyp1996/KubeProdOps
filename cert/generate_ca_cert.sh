@@ -11,7 +11,7 @@ function print_help() {
 
   Parameters explanation:
 
-  --cluster-name       [required]  kubernetes cluster name. In the current directory, create a new folder to store CA certificates.
+  --cluster-name       [required]  kubernetes cluster name. In the current directory, create a new folder to store certificates.
   --vip                [required]  kubernetes master vip. 
   "
 }
