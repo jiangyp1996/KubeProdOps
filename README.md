@@ -1,3 +1,28 @@
+# <center>Install a highly avaliable Kubernetes in Prod</center>
+
+- How to install a Kubernetes in prod ?
+- How to migrate a etcd node ?
+- How to migrate a master node ?
+- How to upgrade kubelet from http to https ?
+- How to upgrade etcd from http to https ?
+
+# Preparations
+
+- A center control node with ansible and ssh
+- Clone this project to your center control node, then do the following
+
+
+# Environment
+
+- Operating System and version: Red Hat Enterprise Linux Server release 7.9
+- Kernel: 3.10.0-1160.15.2.el7.x86_64
+- Kubernetes version: 1.18.14
+- Etcd version: 3.5.4
+- Docker version: 19.03.14
+- Flannel version: 0.22.3
+- CodeDNS version: 1.10.1
+
+
 # Certificate
 
 Generate CA, Master and etcd certificates, and distribute them to the corresponding target hosts.
@@ -40,7 +65,7 @@ ansible-playbook -i ./etcd/inventory/etcd-inventory.ini ./etcd/install_etcd.yml
 # Install Master
 
 - Highly Available Kubernetes. We need at least two master hosts and a vip.
-- This shell scripts will download master installation package from https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz , if the machine’s network does not allow it, please download it in advance.
+- This shell scripts will download master installation package from [https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz](https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz), if the machine’s network does not allow it, please download it in advance.
 
 ```
 ansible-playbook -i ./master/inventory/master-inventory.ini ./master/install_master.yml
@@ -62,7 +87,7 @@ yum install -y keepalived
 - worker-inventory.ini parameters explanation
 	- apiserver_secure_port : HAProxy proxy port, used to connect the worker to the master
 	- cluster_dns : coredns service clusterIP
-- This shell scripts will download worker installation package from https://dl.k8s.io/v1.18.14/kubernetes-node-linux-amd64.tar.gz and docker installation package from https://download.docker.com/linux/static/stable/x86_64/docker-19.03.14.tgz , if the machine’s network does not allow them, please download them in advance.
+- This shell scripts will download worker installation package from [https://dl.k8s.io/v1.18.14/kubernetes-node-linux-amd64.tar.gz](https://dl.k8s.io/v1.18.14/kubernetes-node-linux-amd64.tar.gz) and docker installation package from [https://download.docker.com/linux/static/stable/x86_64/docker-19.03.14.tgz](https://download.docker.com/linux/static/stable/x86_64/docker-19.03.14.tgz), if the machine’s network does not allow them, please download them in advance.
 
 
 ```
@@ -77,6 +102,9 @@ ansible-playbook -i ./worker/worker-inventory.ini ./worker/install_worker.yml
 
 1. Migrate master node
 2. Migrate etcd node
+3. Upgrade kubelet from http to https
+4. Upgrade etcd from http to https
+
 
 
 
