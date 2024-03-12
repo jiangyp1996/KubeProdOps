@@ -7,12 +7,17 @@ master_ip=
 
 function print_help() {
   echo -e "
-  \033[0;33m====== Generate ca.key and ca.crt ======
+  \033[0;33m ====== Generate ca.key and ca.crt ======
 
   Parameters explanation:
 
   --cluster-name       [required]  kubernetes cluster name. In the current directory, create a new folder to store certificates.
   --vip                [required]  kubernetes master vip. 
+
+
+  For example:
+
+  /bin/sh generate_ca_cert.sh --cluster-name=my-k8s --vip=10.18.10.100 \033[0m
   "
 }
 

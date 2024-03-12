@@ -1,3 +1,9 @@
+### Kubernetes Version
+- [ ] v1.18
+- [ ] v1.28
+
+
+
 ### Cert
 - [x] generate ca cert
 - [x] generate and distribute etcd cert
@@ -15,28 +21,22 @@
 
 ### Master
 
-- [ ] shell scripts 
-- [ ] how to handle binary installation packages
-- [ ] test
+- [x] shell scripts 
+- [x] how to handle binary installation packages
+- [x] test
 
 
 ### Node
 
 - [x] a preliminary installation framework
-- [ ] shell scripts
+- [x] shell scripts
 - [ ] kube-flannel manifest
 - [ ] if generating master cert uses a custom cluster_domain, you also need to do the same here
 
 
-### component
+### Others
 - [ ] coredns
-
-
-### doc
-
-- [ ] README
-
-
-### k8s version
-- [ ] v1.18
-- [ ] v1.28
+- [x] README
+- [ ] a shell script to generate all inventory files
+- [ ] migrate etcd node document
+- [ ] migrate master node document

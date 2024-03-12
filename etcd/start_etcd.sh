@@ -17,14 +17,17 @@ ETCD_OPTS="--enable-v2=true --cert-file=/etc/kubernetes/pki/etcd_server.crt --ke
 
 print_help() {
 	echo -e "
-	\033[0;33mParameters explanation:
+	\033[0;33m
+  Parameters explanation:
 
-    --cluster-nodes      [required]  etcd cluster peer nodes
-    --data-dir           [optional]  etcd data storage root path, default /data/etcd
-    --etcd_version       [optional]  etcd version, default 3.5.4
+  --cluster-nodes      [required]  etcd cluster peer nodes
+  --data-dir           [optional]  etcd data storage root path, default /data/etcd
+  --etcd_version       [optional]  etcd version, default 3.5.4
 
-    For example:
-    bash start_etcd.sh --cluster-nodes=10.18.10.100,10.18.10.101,10.18.10.102\033[0m
+
+  For example:
+
+  bash start_etcd.sh --cluster-nodes=10.18.10.3,10.18.10.4,10.18.10.5 \033[0m
 	"
 }
 

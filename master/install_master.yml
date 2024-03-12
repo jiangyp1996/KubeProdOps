@@ -1,28 +1,19 @@
 ---
-# start etcd
 - remote_user: root
-  hosts: etcd
+  hosts: master
   tasks:
-  - name: copy start_etcd.sh 
-    copy: src=./start_etcd.sh dest=/tmp/start_etcd.sh
-  - name: copy etcd
-    copy: src=./package/{{ etcd_version }}/etcd dest=/tmp/etcd
-    vars:
-      - etcd_version: "{{ hostvars[inventory_hostname]['etcd_version'] }}"
-  - name: copy etcdctl
-    copy: src=./package/{{ etcd_version }}/etcdctl dest=/tmp/etcdctl
-    vars:
-      - etcd_version: "{{ hostvars[inventory_hostname]['etcd_version'] }}"
-  - name: start installing etcd
-    command: /bin/sh /tmp/start_etcd.sh --cluster-nodes={{ allips }} --data-dir={{ data_dir }} --etcd-version={{ etcd_version }}
+  - name: copy start_master.sh 
+    copy: src=./start_master.sh dest=/tmp/start_master.sh
+  - name: start installing master
+    command: /bin/sh /tmp/start_master.sh --cluster-name={{ cluster_name }} --etcd-servers-ip={{ etcd_servers_ip }} --apiserver-count={{ apiserver_count }}
     register: result
     vars:
-      - etcd_version: "{{ hostvars[inventory_hostname]['etcd_version'] }}"
-      - data_dir: "{{ hostvars[inventory_hostname]['data_dir'] }}"
-      - allips: "{{ groups['etcd'] | join(',') }}"
+      - cluster_name: "{{ hostvars[inventory_hostname]['cluster_name'] }}"
+      - apiserver_count: "{{ hostvars[inventory_hostname]['apiserver_count'] }}"
+      - etcd_servers_ip: "{{ groups['etcd'] | join(',') }}"
   - debug:
       msg: "{{result.stdout}}"
   - debug:
       msg: "{{result.stderr}}"
-  - name: clear start_etcd.sh
-    command: rm -f /tmp/start_etcd.sh
+  - name: clear start_master.sh
+    command: rm -f /tmp/start_master.sh

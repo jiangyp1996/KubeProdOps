@@ -9,12 +9,17 @@ CERT_STORAGE_PATH="/etc/kubernetes/pki/"
 
 function print_help() {
   echo -e "
-  \033[0;33m====== Generate and distribute etcd and ca cert ======
+  \033[0;33m ====== Generate and distribute etcd and ca cert ======
 
   Parameters explanation:
 
   --cluster-name       [required]  kubernetes cluster name. In the current directory, create a new folder with this --cluster-name to store certificates 
-  --etcd-servers-ip    [required]  etcd servers' ip list, separeted by commas such as 10.0.0.1,10.0.0.2,10.0.0.3\033[0m
+  --etcd-servers-ip    [required]  etcd servers' ip list, separeted by commas such as 10.0.0.1,10.0.0.2,10.0.0.3
+
+
+  For example:
+
+  /bin/sh generate_and_distribute_etcd_cert.sh --cluster-name=my-k8s --etcd-servers-ip=10.18.10.3,10.18.10.4,10.18.10.35 \033[0m
   "
 }
 

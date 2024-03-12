@@ -2,9 +2,9 @@
 
 
 cluster_name=
-cluster_domain="cluster.local"
-vip=
 master_servers_ip=
+vip=
+cluster_domain="cluster.local"
 
 
 CERT_STORAGE_PATH="/etc/kubernetes/pki/"
@@ -12,7 +12,7 @@ CERT_STORAGE_PATH="/etc/kubernetes/pki/"
 
 function print_help() {
   echo -e "
-  \033[0;33m====== Generate and distribute master and ca cert ======
+  \033[0;33m ====== Generate and distribute master and ca cert ======
 
   Parameters explanation:
 
@@ -21,8 +21,10 @@ function print_help() {
   --vip                [optional]  vitual IP, usually used when deploying a highly available master. If vip is absent, --master-servers-ip has only one ip.
   --cluster-domain     [optional]  kubernetes cluster-domain, default cluster.local
 
-  For examply: bash generate_and_distribute_master_cert.sh --cluster-name=my-k8s --master-servers-ip=10.0.0.1,10.0.0.2 --vip=10.0.0.3
-               bash generate_and_distribute_master_cert.sh --cluster-name=my-k8s --master-servers-ip=10.0.0.1\033[0m
+  
+  For examply: 
+
+  /bin/sh generate_and_distribute_master_cert.sh --cluster-name=my-k8s --master-servers-ip=10.18.10.1,10.18.10.2 --vip=10.18.10.100 \033[0m
   "
 }
 
@@ -87,6 +89,9 @@ if [ -z $vip ]; then
   else
     vip=${master_servers_ip}
   fi
+else
+  master_count=$((master_count+1))
+  cert_alt_names_ips+="IP.$((master_count+2)) = $vip\n"
 fi
 echo "=== step 01 : [check parameters] Completed! "
 

@@ -5,7 +5,8 @@
 cluster_name=
 master_ip=
 apiserver_secure_port=6443
-container_data_root="/data"
+container_data_dir="/data/docker"
+pod_data_dir="/data/k8s"
 cluster_dns="172.16.40.1"
 k8s_version="1.18.14"
 
@@ -14,35 +15,6 @@ k8s_version="1.18.14"
 KUBE_CONFIG_FILE="/etc/sysconfig/kubeconfig"
 APISERVER_CA_PATH="/etc/kubernetes/pki"
 CLUSTER_DOMAIN="cluster.local"
-
-
-for arg in "$@"
-do
-  case $arg in
-    --cluster-name=*)
-      cluster_name="${arg#*=}"
-      ;;
-    --master-ip=*)
-      master_ip="${arg#*=}"
-      ;;
-    --apiserver-secure-port=*)
-      apiserver_secure_port="${arg#*=}"
-      ;;
-    --container-data-root=*)
-      container_data_root="${arg#*=}"
-      ;;
-    --cluster-dns=*)
-      cluster_dns="${arg#*=}"
-      ;;
-    --k8s-version=*)
-      k8s_version="${arg#*=}"
-      ;;
-    *)
-      print_help()
-      exit 0
-      ;;
-  esac
-done
 
 
 function command_exists ()
@@ -57,16 +29,55 @@ function service_exists ()
 
 function print_help() {
   echo -e "
-  \033[0;33mParameters explanation:
+  \033[0;33m
+  Parameters explanation:
 
   --cluster-name                   [required]  cluster name, such as my-k8s
-  --master-ip                      [required]  master ip
+  --master-ip                      [required]  master node ip. If your master nodes are highly available with vip, please use the vip.
   --apiserver-secure-port          [optional]  apiserver secure port, default 6443
-  --container-data-root            [optional]  the storage path of pod and container, default /data
+  --container-data-dir             [optional]  the storage path of container, default /data/docker
+  --pod-data-dir                   [optional]  the storage path of pod, default /data/k8s 
   --cluster-dns                    [optional]  CoreDNA Service IP, default 172.16.40.1
+
+  For example:
+
+  /bin/sh start_worker.sh --cluster-name=my-k8s --master-ip=10.18.10.100
   \033[0m
   "
 }
+
+
+for arg in "$@"
+do
+  case $arg in
+    --cluster-name=*)
+      cluster_name="${arg#*=}"
+      ;;
+    --master-ip=*)
+      master_ip="${arg#*=}"
+      ;;
+    --apiserver-secure-port=*)
+      apiserver_secure_port="${arg#*=}"
+      ;;
+    --container-data-dir=*)
+      container_data_dir="${arg#*=}"
+      ;;
+    --pod-data-dir=*)
+      pod_data_dir="${arg#*=}"
+      ;;
+    --cluster-dns=*)
+      cluster_dns="${arg#*=}"
+      ;;
+    --k8s-version=*)
+      k8s_version="${arg#*=}"
+      ;;
+    *)
+      print_help
+      exit 0
+      ;;
+  esac
+done
+
 
 
 # step 01 : check linux kernel version
@@ -94,6 +105,9 @@ if ! command_exists curl; then
 fi
 if ! command_exists wget; then
   yum install -y wget
+fi
+if ! command_exists conntrack; then
+  yum install -y conntrack
 fi
 echo -e "\033[32m[OK] Check kernel OK, current kernel version is ${kernel_parts_tmp[0]}\033[0m"
 
@@ -198,16 +212,13 @@ while IFS='' read -r line || [[ -n "$line" ]]; do
   fi
 done < /etc/resolv.conf
 
-set -e
 chattr -i /etc/resolv.conf
-sed -i -e "/cluster.local/d" /etc/resolv.conf
 echo "search ${cluster_dns_search}" > /etc/resolv.conf
 echo "nameserver ${cluster_dns}" >> /etc/resolv.conf
 for i in "${host_self_dns[@]}"
 do
   echo $i >> /etc/resolv.conf
 done
-set +e
 
 
 # step 06 : download kubernetes-node-linux-amd64.tar.gz and docker-19.03.14.tgz
@@ -273,9 +284,9 @@ Restart=always
 [Install]
 WantedBy=multi-user.target" > /usr/lib/systemd/system/docker.service
 
-mkdir -p ${container_data_root}/docker
+mkdir -p ${container_data_dir}
 echo "DOCKER_OPTS=\"--log-level=warn --storage-driver=overlay2 --userland-proxy=false --log-opt max-size=1g --log-opt max-file=5\"
-DOCKER_STORAGE_OPTIONS=\"--data-root ${container_data_root}/docker\"
+DOCKER_STORAGE_OPTIONS=\"--data-root ${container_data_dir}\"
 DOCKER_LOG_LEVEL=\"--log-level warn\"
 " > /etc/sysconfig/docker
 
@@ -348,7 +359,7 @@ StartLimitInterval=0
 WantedBy=multi-user.target
 " > /lib/systemd/system/kubelet.service
 
-mkdir -p ${container_data_root}/k8s
+mkdir -p ${pod_data_dir}
 echo "# configure file for kubelet
 # --api-servers
 API_SERVERS='--kubeconfig=${KUBE_CONFIG_FILE}'
@@ -357,7 +368,7 @@ CLUSTER_DNS='--cluster-dns=${cluster_dns}'
 # --cluster-domain
 CLUSTER_DOMAIN='--cluster-domain=${CLUSTER_DOMAIN}'
 # --root-dir
-ROOT_DIR='--root-dir=${container_data_root}/k8s'
+ROOT_DIR='--root-dir=${pod_data_dir}'
 # other parameters
 KUBELET_OPTS='--anonymous-auth=false --client-ca-file=${APISERVER_CA_PATH}/ca.crt --authentication-token-webhook=true --read-only-port=0 --max-pods=70 --allowed-unsafe-sysctls=\"net.*,kernel.shm*,kernel.msg*,fs.mqueue.*\" --fail-swap-on=false'
 " > /etc/sysconfig/kubelet

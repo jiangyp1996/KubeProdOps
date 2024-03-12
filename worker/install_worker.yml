@@ -1,0 +1,30 @@
+---
+- remote_user: root
+  hosts: node
+  tasks:
+  - name: copy install script
+    copy: src=./start_worker.sh dest=/tmp/start_worker.sh
+  - name: copy ca.crt 
+    copy: src=../cert/{{ hostvars[inventory_hostname]['cluster_name'] }}/ca/ca.crt dest=/tmp/ca.crt
+  - name: start the node
+    vars:
+     - cluster_name: "{{ hostvars[inventory_hostname]['cluster_name'] }}"
+     - vip: "{{ hostvars[inventory_hostname]['vip'] }}"
+     - apiserver_secure_port: "{{ hostvars[inventory_hostname]['apiserver_secure_port'] }}"
+     - container_data_dir: "{{ hostvars[inventory_hostname]['container_data_dir'] }}"
+     - pod_data_dir: "{{ hostvars[inventory_hostname]['pod_data_dir'] }}"
+     - cluster_dns: "{{ hostvars[inventory_hostname]['cluster_dns'] }}"
+     - k8s_version: "{{ hostvars[inventory_hostname]['k8s_version'] | default('1.18.14') }}"
+    command: /bin/sh /tmp/start_worker.sh --cluster-name={{ cluster_name }} --master-ip={{ vip }} --container-data-dir={{ container_data_dir }} --pod-data-dir={{ pod_data_dir }} --cluster-dns={{ cluster_dns }} --k8s-version={{ k8s_version }}
+    register: result
+  - debug:
+      msg: "{{ result.stdout }}"
+  - debug:
+      msg: "{{ result.stderr }}"
+  - name: clean 
+    command: rm -f "/tmp/start_worker.sh"
+  - name: update resolv.conf
+    replace:
+     destfile: /etc/resolv.conf
+     regexp: '^(options rotate)'
+     replace: '#\1'
