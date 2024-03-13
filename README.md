@@ -99,7 +99,23 @@ ansible-playbook -i ./worker/worker-inventory.ini ./worker/install_worker.yml
 
 ## Install Flannel
 
+1. Download kube-flannel.yml from [github flannel releases](https://github.com/flannel-io/flannel/releases) to worker node.
+
+2. Change the Network value of ConfigMap, such as 172.24.0.0/13 in this project example.
+
+> You can refer to others/kube-flannel.yml in this project.
+
+3. kubectl apply -f kube-flannel.yml
+
 ## Install CoreDNS
+
+1. Refer to [coredns.yaml.sed](https://github.com/coredns/deployment/blob/master/kubernetes/coredns.yaml.sed) or this project's others/install-coredns.yml 
+
+2. Change ConfigMap data
+
+3. Change Service clusterIP, such as 172.16.40.1 in this project example
+
+4. kubectl apply -f install-coredns.yml
 
 # Others
 

@@ -30,12 +30,12 @@
 
 - [x] a preliminary installation framework
 - [x] shell scripts
-- [ ] kube-flannel manifest
+- [x] kube-flannel manifest
 - [ ] if generating master cert uses a custom cluster_domain, you also need to do the same here
 
 
 ### Others
-- [ ] coredns
+- [x] coredns
 - [x] README
 - [ ] a shell script to generate all inventory files
 - [ ] migrate etcd node document
