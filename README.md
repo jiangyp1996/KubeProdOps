@@ -1,18 +1,21 @@
-# <center>Install a highly avaliable Kubernetes in Prod</center>
+### Operate a highly avaliable Kubernetes cluster in Prod
 
-- How to install a Kubernetes in prod ?
+- How to install Kubernetes in prod ? 
 - How to migrate a etcd node ?
 - How to migrate a master node ?
 - How to upgrade kubelet from http to https ?
 - How to upgrade etcd from http to https ?
 
-# Preparations
+# Install Kubernetes
+
+
+## Preparations
 
 - A center control node with ansible and ssh
 - Clone this project to your center control node, then do the following
 
 
-# Environment
+## Environment
 
 - Operating System and version: Red Hat Enterprise Linux Server release 7.9
 - Kernel: 3.10.0-1160.15.2.el7.x86_64
@@ -23,7 +26,7 @@
 - CodeDNS version: 1.10.1
 
 
-# Certificate
+## Certificate
 
 Generate CA, Master and etcd certificates, and distribute them to the corresponding target hosts.
 
@@ -53,7 +56,7 @@ sh ./cert/generate_and_distribute_master_cert.sh --cluster-name=my-k8s --master-
 ```
 
 
-# Install etcd
+## Install etcd
 
 - Reference : [Hardware recommendations](https://etcd.io/docs/v3.3/op-guide/hardware/)
 
@@ -62,7 +65,7 @@ ansible-playbook -i ./etcd/inventory/etcd-inventory.ini ./etcd/install_etcd.yml
 ```
 
 
-# Install Master
+## Install Master
 
 - Highly Available Kubernetes. We need at least two master hosts and a vip.
 - This shell scripts will download master installation package from [https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz](https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz), if the machine’s network does not allow it, please download it in advance.
@@ -72,7 +75,7 @@ ansible-playbook -i ./master/inventory/master-inventory.ini ./master/install_mas
 ```
 
 
-# Install HAProxy and Keepalived
+## Install HAProxy and Keepalived
 
 ```
 yum install -y haproxy
@@ -82,7 +85,7 @@ yum install -y keepalived
 ```
 
 
-# Install Worker
+## Install Worker
 
 - worker-inventory.ini parameters explanation
 	- apiserver_secure_port : HAProxy proxy port, used to connect the worker to the master
@@ -94,9 +97,9 @@ yum install -y keepalived
 ansible-playbook -i ./worker/worker-inventory.ini ./worker/install_worker.yml
 ```
 
-# Install Flannel
+## Install Flannel
 
-# Install CoreDNS
+## Install CoreDNS
 
 # Others
 
