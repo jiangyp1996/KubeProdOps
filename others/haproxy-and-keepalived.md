@@ -238,7 +238,12 @@ if [ $count -eq 0 ]; then
 fi
 ```
 
+#### 3. Start
 
+```
+systemctl start keepalived
+systemctl enable keepalived
+```
 
 
 
