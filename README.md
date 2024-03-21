@@ -6,7 +6,7 @@
 - How to upgrade kubelet from http to https ?
 - How to upgrade etcd from http to https ?
 
-# Install Kubernetes
+# 🌱 Install Kubernetes
 
 
 ## Preparations
@@ -77,12 +77,7 @@ ansible-playbook -i ./master/inventory/master-inventory.ini ./master/install_mas
 
 ## Install HAProxy and Keepalived
 
-```
-yum install -y haproxy
-yum install -y keepalived
-
-# And then configure them as your wish.
-```
+- You can refer to [install HAProxy and Keepalived](./others/haproxy-and-keepalived.md).
 
 
 ## Install Worker
@@ -117,7 +112,7 @@ ansible-playbook -i ./worker/worker-inventory.ini ./worker/install_worker.yml
 
 4. kubectl apply -f install-coredns.yml
 
-# Others
+# 🍄 Others 
 
 1. Migrate master node
 2. Migrate etcd node
