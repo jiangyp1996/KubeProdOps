@@ -11,8 +11,16 @@
 
 ## Preparations
 
-- A center control node with ansible and ssh
-- Clone this project to your center control node, then do the following
+- A center control node with ansible and ssh, refer to [this](./others/ansible-control-node.md).
+- Clone this project to your ansible control node, then do the following.
+
+	```
+	git clone https://github.com/jiangyp1996/KubeProdOps.git
+
+	cd KubeProdOps
+
+	git checkout -b <your-k8s-cluster-name>
+	```
 
 
 ## Environment
@@ -35,7 +43,9 @@ Generate CA, Master and etcd certificates, and distribute them to the correspond
 - Generate ca.key and ca.crt. 
 
 ```
-sh ./cert/generate_ca_cert.sh --cluster-name=my-k8s --vip=10.18.10.100
+cd cert
+
+sh ./generate_ca_cert.sh --cluster-name=my-k8s --vip=10.18.10.100
 ```
 
 ### 2. Generate and distribute etcd and CA cert
@@ -44,7 +54,7 @@ sh ./cert/generate_ca_cert.sh --cluster-name=my-k8s --vip=10.18.10.100
 - Distribute ca.crt, etcd_server.key and etcd_server.crt to etcd hosts
 
 ```
-sh ./cert/generate_and_distribute_etcd_cert.sh --cluster-name=my-k8s --etcd-servers-ip=10.18.10.3,10.18.10.4,10.18.10.5
+sh ./generate_and_distribute_etcd_cert.sh --cluster-name=my-k8s --etcd-servers-ip=10.18.10.3,10.18.10.4,10.18.10.5
 ```
 
 ### 3. Generate and distribute Master and CA cert
@@ -52,7 +62,7 @@ sh ./cert/generate_and_distribute_etcd_cert.sh --cluster-name=my-k8s --etcd-serv
 - Generate apiserver.key and apiserver.crt
 - Distribute ca.crt, apiserver.key, apiserver.crt, etcd_client.key and etcd_client.crt to master hosts
 ```
-sh ./cert/generate_and_distribute_master_cert.sh --cluster-name=my-k8s --master-servers-ip=10.18.10.1,10.18.10.2 --vip=10.18.10.100
+sh ./generate_and_distribute_master_cert.sh --cluster-name=my-k8s --master-servers-ip=10.18.10.1,10.18.10.2 --vip=10.18.10.100
 ```
 
 
@@ -61,7 +71,9 @@ sh ./cert/generate_and_distribute_master_cert.sh --cluster-name=my-k8s --master-
 - Reference : [Hardware recommendations](https://etcd.io/docs/v3.3/op-guide/hardware/)
 
 ```
-ansible-playbook -i ./etcd/inventory/etcd-inventory.ini ./etcd/install_etcd.yml
+cd etcd
+
+ansible-playbook -i ./inventory/etcd-inventory.ini  install_etcd.yml
 ```
 
 
@@ -71,7 +83,9 @@ ansible-playbook -i ./etcd/inventory/etcd-inventory.ini ./etcd/install_etcd.yml
 - This shell scripts will download master installation package from [https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz](https://dl.k8s.io/v1.18.14/kubernetes-server-linux-amd64.tar.gz), if the machine’s network does not allow it, please download it in advance.
 
 ```
-ansible-playbook -i ./master/inventory/master-inventory.ini ./master/install_master.yml
+cd master
+
+ansible-playbook -i ./inventory/master-inventory.ini  install_master.yml
 ```
 
 
@@ -89,7 +103,9 @@ ansible-playbook -i ./master/inventory/master-inventory.ini ./master/install_mas
 
 
 ```
-ansible-playbook -i ./worker/worker-inventory.ini ./worker/install_worker.yml
+cd worker
+
+ansible-playbook -i ./worker-inventory.ini  install_worker.yml
 ```
 
 ## Install Flannel
