@@ -130,8 +130,8 @@ ansible-playbook -i ./worker-inventory.ini  install_worker.yml
 
 # 🍄 Others 
 
-1. Migrate master node
-2. Migrate etcd node
+1. [Migrate a master node](./others/migrate-master-node.md)
+2. Migrate a etcd node
 3. Upgrade kubelet from http to https
 4. Upgrade etcd from http to https
 
